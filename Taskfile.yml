@@ -58,7 +58,7 @@ tasks:
   clear:
     desc: Clear all data from the development database
     cmds:
-      - docker exec -i db-dev psql -U $APP_DB_USER -d $APP_DB_NAME < db/seeds/000_clear.sql
+      - docker exec -i db-dev psql -U $APP_DB_USER -d $APP_DB_NAME < db/seeds/clear.sql
 
 
   back:
