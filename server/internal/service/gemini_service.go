@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -110,15 +109,6 @@ func (s *GeminiService) ExtractCategoriesFromPDF(ctx context.Context, originalFi
 		return nil, err
 	}
 
-	file, err := s.client.Files.Upload(ctx, bytes.NewReader(pdfBytes), &genai.UploadFileConfig{
-		MIMEType:    "application/pdf",
-		DisplayName: originalFilename,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("upload pdf to Vertex AI: %w", err)
-	}
-	defer s.deleteUploadedFile(ctx, file.Name)
-
 	prompt := strings.TrimSpace(`
 Extract the syllabus grading breakdown from this PDF.
 
@@ -136,8 +126,8 @@ Return JSON with this exact shape:
 		s.model,
 		[]*genai.Content{
 			genai.NewContentFromParts([]*genai.Part{
+				genai.NewPartFromBytes(pdfBytes, "application/pdf"),
 				genai.NewPartFromText(prompt),
-				genai.NewPartFromURI(file.URI, file.MIMEType),
 			}, genai.RoleUser),
 		},
 		&genai.GenerateContentConfig{
@@ -271,16 +261,6 @@ func (s *GeminiService) ensureReady() error {
 		return s.initErr
 	}
 	return ErrGeminiUnavailable
-}
-
-func (s *GeminiService) deleteUploadedFile(ctx context.Context, name string) {
-	if s.client == nil || strings.TrimSpace(name) == "" {
-		return
-	}
-
-	if _, err := s.client.Files.Delete(ctx, name, nil); err != nil {
-		log.Warn().Err(err).Str("file", name).Msg("Failed to delete uploaded Vertex AI file")
-	}
 }
 
 func float32Ptr(value float32) *float32 {
