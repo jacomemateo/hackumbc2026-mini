@@ -14,22 +14,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   // ── Collect course IDs from the course list page ───────────────────────────
-  if (message.action === "GET_COURSE_IDS") {
+if (message.action === "GET_COURSE_IDS") {
   const courseElements = document.querySelectorAll(BB_MAP.courseList.itemCard);
-
   const ids = Array.from(courseElements)
     .filter(card => {
       const statusEl = card.querySelector(".status-text");
       const statusText = statusEl?.innerText.trim().toLowerCase();
-
-      // include ONLY open courses
       return statusText === BB_MAP.courseList.couseStatusOpen;
     })
-    .map(card => ({
-      Name: card.querySelector(BB_MAP.courseList.courseName)?.innerText.trim() ?? "Unknown Course",
-      URL: `https://blackboard.umbc.edu/ultra/courses/${card.getAttribute(BB_MAP.courseList.courseIdAttr)}/grades`,
-    }));
+    .map(card => {
+      // 1. Get the name and URL as before
+      const name = card.querySelector(BB_MAP.courseList.courseName)?.innerText.trim() ?? "Unknown Course";
+      const url = `https://blackboard.umbc.edu/ultra/courses/${card.getAttribute(BB_MAP.courseList.courseIdAttr)}/grades`;
+      
+      // 2. NEW: Find the instructor
+      const instructorEl = card.querySelector(BB_MAP.courseList.instructor);
+      const instructorName = instructorEl ? instructorEl.innerText.trim() : "Unknown Instructor";
 
+      return {
+        Name: name,
+        Instructor: instructorName, // This will now appear in your JSON
+        URL: url
+      };
+    });
   chrome.runtime.sendMessage({ action: "IDS_COLLECTED", data: ids });
 }
 
