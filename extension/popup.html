@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 300px;
+      padding: 14px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+      color: #2c2c2c;
+      background: #eef0f4;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #d8dce4;
+    }
+    .header-logo { font-size: 26px; line-height: 1; }
+    .header-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1a1a2e;
+      letter-spacing: -0.2px;
+    }
+    .header-sub { font-size: 10px; color: #9099a8; margin-top: 2px; }
+
+    /* ── Buttons ─────────────────────────────────────────────────────── */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 9px 12px;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.1px;
+      transition: filter 0.15s, transform 0.1s;
+      margin-top: 8px;
+    }
+    .btn:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn:active:not(:disabled) { transform: translateY(0px); filter: brightness(0.96); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary { background: #3b5998; color: #fff; }
+    .btn-green   { background: #1e8c45; color: #fff; }
+    .btn-gray    { background: #5a6374; color: #fff; }
+
+    /* ── Status card ─────────────────────────────────────────────────── */
+    .status-card {
+      margin-top: 10px;
+      padding: 9px 11px;
+      background: #fff;
+      border-radius: 7px;
+      border-left: 3px solid #c8cdd6;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+      transition: border-color 0.25s;
+    }
+    .status-icon { font-size: 14px; flex-shrink: 0; padding-top: 1px; }
+    .status-text { font-size: 12px; color: #444; line-height: 1.45; }
+
+    /* ── Progress bar ────────────────────────────────────────────────── */
+    .progress-wrap { margin-top: 10px; }
+    .progress-track {
+      height: 5px;
+      background: #d4d8e0;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #3b5998 0%, #7a9de8 100%);
+      border-radius: 99px;
+      transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .progress-label {
+      font-size: 10px;
+      color: #9099a8;
+      text-align: right;
+      margin-top: 4px;
+    }
+
+    /* ── Export section ──────────────────────────────────────────────── */
+    .export-wrap { margin-top: 2px; }
+    .harvest-meta {
+      margin-top: 10px;
+      padding: 7px 10px;
+      background: #fff;
+      border-radius: 7px;
+      font-size: 10px;
+      color: #7a8394;
+      text-align: center;
+      line-height: 1.5;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-logo">🎓</div>
+    <div>
+      <div class="header-title">Grade Harvester</div>
+      <div class="header-sub">UMBC · Blackboard Ultra</div>
+    </div>
+  </div>
+
+  <!-- Primary action -->
+  <button id="start-btn" class="btn btn-primary">▶&nbsp; Start Harvest</button>
+
+  <!-- Progress (hidden while idle) -->
+  <div id="progress-wrap" class="progress-wrap hidden">
+    <div class="progress-track">
+      <div id="progress-fill" class="progress-fill"></div>
+    </div>
+    <div id="progress-label" class="progress-label"></div>
+  </div>
+
+  <!-- Live status -->
+  <div id="status-card" class="status-card">
+    <span id="status-icon" class="status-icon">⏳</span>
+    <span id="status-text" class="status-text">Log in to Blackboard, then click Start.</span>
+  </div>
+
+  <!-- Export (hidden until data exists) -->
+  <div id="export-wrap" class="export-wrap hidden">
+    <div id="harvest-meta" class="harvest-meta"></div>
+    <button id="export-excel-btn" class="btn btn-green">📊&nbsp; Export Excel</button>
+    <button id="export-json-btn"  class="btn btn-gray">{ }&nbsp; Export JSON</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
