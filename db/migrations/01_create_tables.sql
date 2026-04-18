@@ -1,9 +1,8 @@
 -- code: language=postgres
 
 CREATE TYPE grade_status AS ENUM (
-  'GRADEED',
-  'NOT GRADED',
-  'N/A'
+  'GRADED',
+  'UNGRADED'
 );
 
 CREATE TABLE courses (
