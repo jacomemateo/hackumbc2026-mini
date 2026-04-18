@@ -4,7 +4,10 @@
   "version": "2.0",
   "description": "Automatically collects all grades from UMBC Blackboard Ultra and exports them to Excel or JSON.",
   "permissions": ["tabs", "storage", "scripting"],
-  "host_permissions": ["https://blackboard.umbc.edu/*"],
+  "host_permissions": [
+    "https://blackboard.umbc.edu/*", 
+    "http://localhost:8080/*"
+    ],
   "action": { "default_popup": "popup.html" },
   "background": { "service_worker": "background.js" },
   "content_scripts": [
