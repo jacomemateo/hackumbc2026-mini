@@ -77,9 +77,20 @@ export type UploadedSyllabus = {
     content_type: string;
     size_bytes: number;
     uploaded_at: string;
+    parse_status: string;
+    parse_message?: string;
 };
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
+
+class APIError extends Error {
+    status: number;
+
+    constructor(status: number, message: string) {
+        super(message);
+        this.status = status;
+    }
+}
 
 const apiFetch = (input: string, init: RequestInit = {}) => {
     const headers = new Headers(init.headers);
@@ -89,11 +100,26 @@ const apiFetch = (input: string, init: RequestInit = {}) => {
     return fetch(input, { ...init, headers });
 };
 
+const readAPIError = async (response: Response): Promise<never> => {
+    let message = `HTTP error! status: ${response.status}`;
+
+    try {
+        const data = await response.json() as { error?: string };
+        if (typeof data.error === 'string' && data.error.trim() !== '') {
+            message = data.error;
+        }
+    } catch {
+        // Ignore non-JSON error bodies and keep the fallback message.
+    }
+
+    throw new APIError(response.status, message);
+};
+
 // ─── Health ───────────────────────────────────────────────────────────────────
 
 export const checkHealth = async (): Promise<unknown> => {
     const response = await apiFetch(`${API_BASE_URL}/api/health`);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    if (!response.ok) await readAPIError(response);
     return await response.json();
 };
 
@@ -102,7 +128,7 @@ export const checkHealth = async (): Promise<unknown> => {
 export const fetchCourses = async (): Promise<Course[]> => {
     try {
         const response = await apiFetch(`${API_BASE_URL}/api/courses`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) await readAPIError(response);
         return await response.json();
     } catch (error) {
         console.error('Error fetching courses:', error);
@@ -116,7 +142,7 @@ export const createCourse = async (payload: CreateCoursePayload): Promise<Course
             method: 'POST',
             body: JSON.stringify(payload),
         });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) await readAPIError(response);
         return await response.json();
     } catch (error) {
         console.error('Error creating course:', error);
@@ -127,7 +153,7 @@ export const createCourse = async (payload: CreateCoursePayload): Promise<Course
 export const fetchCourseCategories = async (courseID: string): Promise<Category[]> => {
     try {
         const response = await apiFetch(`${API_BASE_URL}/api/courses/${courseID}/categories`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) await readAPIError(response);
         return await response.json();
     } catch (error) {
         console.error(`Error fetching categories for course ${courseID}:`, error);
@@ -155,7 +181,7 @@ export const fetchGrades = async (
         const response = await apiFetch(
             `${API_BASE_URL}/api/grades?${params.toString()}`,
         );
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) await readAPIError(response);
         return await response.json();
     } catch (error) {
         console.error('Error fetching grades:', error);
@@ -173,7 +199,7 @@ export const getGradeCount = async (options: GradeCountOptions = {}): Promise<nu
         const response = await apiFetch(
             `${API_BASE_URL}/api/grades/count${query ? `?${query}` : ''}`,
         );
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) await readAPIError(response);
         return await response.json();
     } catch (error) {
         console.error('Error fetching grade count:', error);
@@ -197,7 +223,7 @@ export const createGrade = async (payload: CreateGradePayload): Promise<Grade> =
             method: 'POST',
             body: JSON.stringify(payload),
         });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) await readAPIError(response);
         return await response.json();
     } catch (error) {
         console.error('Error creating grade:', error);
@@ -214,7 +240,7 @@ export const updateGrade = async (
             method: 'PATCH',
             body: JSON.stringify(payload),
         });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) await readAPIError(response);
         return await response.json();
     } catch (error) {
         console.error(`Error updating grade ${gradeID}:`, error);
@@ -227,7 +253,7 @@ export const deleteGrade = async (gradeID: string): Promise<void> => {
         const response = await apiFetch(`${API_BASE_URL}/api/grades/${gradeID}`, {
             method: 'DELETE',
         });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) await readAPIError(response);
     } catch (error) {
         console.error(`Error deleting grade ${gradeID}:`, error);
         throw error;
@@ -248,7 +274,7 @@ export const uploadSyllabus = async (
             method: "POST",
             body: formData,
         });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) await readAPIError(response);
         return await response.json();
     } catch (error) {
         console.error(`Error uploading syllabus for course ${courseID}:`, error);
@@ -259,10 +285,12 @@ export const uploadSyllabus = async (
 export const getSyllabusMetadata = async (courseID: string): Promise<UploadedSyllabus> => {
     try {
         const response = await apiFetch(`${API_BASE_URL}/api/courses/${courseID}/syllabus`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) await readAPIError(response);
         return await response.json();
     } catch (error) {
-        console.error(`Error fetching syllabus for course ${courseID}:`, error);
+        if (!(error instanceof APIError && error.status === 404)) {
+            console.error(`Error fetching syllabus for course ${courseID}:`, error);
+        }
         throw error;
     }
 };

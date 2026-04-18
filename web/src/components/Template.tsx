@@ -155,18 +155,22 @@ const Template = () => {
       setUploadingSyllabus(true);
       const uploaded = await uploadSyllabus(activeCourse.id, file);
       setCurrentSyllabus(uploaded);
-      setSyllabusNotice(`Uploaded ${uploaded.original_filename} successfully.`);
+      if (uploaded.parse_status === "PARSED") {
+        setSyllabusNotice(`Uploaded ${uploaded.original_filename} successfully.`);
+      } else {
+        setSyllabusNotice(uploaded.parse_message ?? `Uploaded ${uploaded.original_filename}, but category extraction did not complete.`);
+      }
     } catch (err) {
       console.error("Upload failed:", err);
       const message = err instanceof Error ? err.message : "Upload failed.";
-      if (message.includes("413")) {
+      if (message.includes("10MB")) {
         setSyllabusError("The PDF is too large. Maximum size is 10MB.");
-      } else if (message.includes("400")) {
+      } else if (message.includes("Only PDF")) {
         setSyllabusError("Upload rejected. Only PDF files are supported.");
-      } else if (message.includes("404")) {
+      } else if (message.includes("Course not found")) {
         setSyllabusError("The selected course could not be found.");
       } else {
-        setSyllabusError("Upload failed. Please try again.");
+        setSyllabusError(message);
       }
     } finally {
       setUploadingSyllabus(false);

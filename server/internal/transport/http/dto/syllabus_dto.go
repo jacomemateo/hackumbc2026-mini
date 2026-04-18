@@ -8,4 +8,6 @@ type SyllabusFileResponse struct {
 	ContentType      string    `json:"content_type"`
 	SizeBytes        int64     `json:"size_bytes"`
 	UploadedAt       time.Time `json:"uploaded_at"`
+	ParseStatus      string    `json:"parse_status"`
+	ParseMessage     *string   `json:"parse_message,omitempty"`
 }

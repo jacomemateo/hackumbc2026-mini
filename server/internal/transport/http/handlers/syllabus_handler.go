@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jacomemateo/hackumbc2026-mini/server/internal/service"
 	"github.com/labstack/echo/v5"
+	"github.com/rs/zerolog/log"
 )
 
 type SyllabusHandler struct {
@@ -51,6 +52,7 @@ func (h *SyllabusHandler) UploadSyllabus(c *echo.Context) error {
 
 	response, err := h.syllabusService.UploadSyllabus(c.Request().Context(), courseID, fileHeader.Filename, file)
 	if err != nil {
+		log.Error().Err(err).Str("course_id", courseID).Str("filename", fileHeader.Filename).Msg("Syllabus upload failed")
 		return h.handleSyllabusError(c, err)
 	}
 
