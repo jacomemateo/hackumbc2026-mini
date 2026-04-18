@@ -15,13 +15,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // ── Collect course IDs from the course list page ───────────────────────────
   if (message.action === "GET_COURSE_IDS") {
-    const courseElements = document.querySelectorAll(BB_MAP.courseList.itemCard);
-    const ids = Array.from(courseElements).map(card => ({
+  const courseElements = document.querySelectorAll(BB_MAP.courseList.itemCard);
+
+  const ids = Array.from(courseElements)
+    .filter(card => {
+      const statusEl = card.querySelector(".status-text");
+      const statusText = statusEl?.innerText.trim().toLowerCase();
+
+      // include ONLY open courses
+      return statusText === "open";
+    })
+    .map(card => ({
       Name: card.querySelector(BB_MAP.courseList.courseName)?.innerText.trim() ?? "Unknown Course",
-      URL:  `https://blackboard.umbc.edu/ultra/courses/${card.getAttribute(BB_MAP.courseList.courseIdAttr)}/grades`,
+      URL: `https://blackboard.umbc.edu/ultra/courses/${card.getAttribute(BB_MAP.courseList.courseIdAttr)}/grades`,
     }));
-    chrome.runtime.sendMessage({ action: "IDS_COLLECTED", data: ids });
-  }
+
+  chrome.runtime.sendMessage({ action: "IDS_COLLECTED", data: ids });
+}
 
   // ── Scrape grades for one course (with pagination) ─────────────────────────
   if (message.action === "SCRAPE_GRADES") {
