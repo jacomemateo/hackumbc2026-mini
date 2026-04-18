@@ -159,6 +159,16 @@ export const getGradeCount = async (options: GradeCountOptions = {}): Promise<nu
     }
 };
 
+export const fetchAllGradesForCourse = async (courseId: string): Promise<Grade[]> => {
+    const totalRows = await getGradeCount({ courseId });
+
+    if (totalRows === 0) {
+        return [];
+    }
+
+    return fetchGrades(totalRows, 0, { courseId });
+};
+
 export const createGrade = async (payload: CreateGradePayload): Promise<Grade> => {
     try {
         const response = await apiFetch(`${API_BASE_URL}/api/grades`, {
