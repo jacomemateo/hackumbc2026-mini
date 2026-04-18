@@ -9,7 +9,7 @@ import (
 	"context"
 )
 
-const createCourse = `-- name: CreateCourse :exec
+const createCourse = `-- name: CreateCourse :one
 INSERT INTO courses (
     course_name,
     course_id,
@@ -26,9 +26,16 @@ type CreateCourseParams struct {
 	ProfessorName string
 }
 
-func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) error {
-	_, err := q.db.Exec(ctx, createCourse, arg.CourseName, arg.CourseID, arg.ProfessorName)
-	return err
+func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Course, error) {
+	row := q.db.QueryRow(ctx, createCourse, arg.CourseName, arg.CourseID, arg.ProfessorName)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.CourseName,
+		&i.CourseID,
+		&i.ProfessorName,
+	)
+	return i, err
 }
 
 const getCourses = `-- name: GetCourses :many

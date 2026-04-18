@@ -15,14 +15,17 @@ const countGradeRows = `-- name: CountGradeRows :one
 SELECT COUNT(*)
 FROM grades g
 JOIN courses c ON g.id_course = c.id
-WHERE $1 = '' 
-   OR c.course_name ILIKE '%' || $1 || '%' 
-   OR c.course_id ILIKE '%' || $1 || '%'
-   OR c.professor_name ILIKE '%' || $1 || '%'
+WHERE ($1::text = '' OR g.id_course::text = $1::text OR c.course_id = $1::text)
+  AND ($2::text = '' OR g.assignment_name ILIKE '%' || $2::text || '%')
 `
 
-func (q *Queries) CountGradeRows(ctx context.Context, search interface{}) (int64, error) {
-	row := q.db.QueryRow(ctx, countGradeRows, search)
+type CountGradeRowsParams struct {
+	CourseID string
+	Search   string
+}
+
+func (q *Queries) CountGradeRows(ctx context.Context, arg CountGradeRowsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countGradeRows, arg.CourseID, arg.Search)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -31,27 +34,30 @@ func (q *Queries) CountGradeRows(ctx context.Context, search interface{}) (int64
 const createGrade = `-- name: CreateGrade :one
 INSERT INTO grades (
     id_course, 
+    assignment_name,
     earned,
     total,
     g_status, 
     posted_date
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 )
-RETURNING id, id_course, earned, total, g_status, posted_date
+RETURNING id, id_course, earned, total, g_status, posted_date, assignment_name
 `
 
 type CreateGradeParams struct {
-	IDCourse   pgtype.UUID
-	Earned     pgtype.Int4
-	Total      pgtype.Int4
-	GStatus    GradeStatus
-	PostedDate pgtype.Timestamptz
+	IDCourse       pgtype.UUID
+	AssignmentName string
+	Earned         pgtype.Int4
+	Total          pgtype.Int4
+	GStatus        GradeStatus
+	PostedDate     pgtype.Timestamptz
 }
 
 func (q *Queries) CreateGrade(ctx context.Context, arg CreateGradeParams) (Grade, error) {
 	row := q.db.QueryRow(ctx, createGrade,
 		arg.IDCourse,
+		arg.AssignmentName,
 		arg.Earned,
 		arg.Total,
 		arg.GStatus,
@@ -65,6 +71,7 @@ func (q *Queries) CreateGrade(ctx context.Context, arg CreateGradeParams) (Grade
 		&i.Total,
 		&i.GStatus,
 		&i.PostedDate,
+		&i.AssignmentName,
 	)
 	return i, err
 }
@@ -82,57 +89,55 @@ func (q *Queries) DeleteGrade(ctx context.Context, id pgtype.UUID) error {
 const getGrades = `-- name: GetGrades :many
 SELECT
     g.id,
+    g.id_course,
+    g.assignment_name,
     g.earned,
     g.total,
     g.g_status,
-    g.posted_date,
-    c.course_name,
-    c.course_id,
-    c.professor_name
+    g.posted_date
 FROM grades g
 JOIN courses c ON g.id_course = c.id
-WHERE $1 = '' 
-   OR c.course_name ILIKE '%' || $1 || '%' 
-   OR c.course_id ILIKE '%' || $1 || '%'
-   OR c.professor_name ILIKE '%' || $1 || '%'
+WHERE ($1::text = '' OR g.id_course::text = $1::text OR c.course_id = $1::text)
+  AND ($2::text = '' OR g.assignment_name ILIKE '%' || $2::text || '%')
 ORDER BY
     -- Sort by grade value (Ratio calculation)
-    CASE WHEN $2 = 'grade' AND $3 = 'asc' THEN (CAST(g.earned AS FLOAT) / NULLIF(g.total, 0)) END ASC NULLS FIRST,
-    CASE WHEN $2 = 'grade' AND $3 = 'desc' THEN (CAST(g.earned AS FLOAT) / NULLIF(g.total, 0)) END DESC NULLS FIRST,
+    CASE WHEN $3::text = 'grade' AND $4::text = 'asc' THEN (CAST(g.earned AS FLOAT) / NULLIF(g.total, 0)) END ASC NULLS FIRST,
+    CASE WHEN $3::text = 'grade' AND $4::text = 'desc' THEN (CAST(g.earned AS FLOAT) / NULLIF(g.total, 0)) END DESC NULLS FIRST,
     -- Sort by date
-    CASE WHEN $2 = 'date' AND $3 = 'asc' THEN g.posted_date END ASC,
-    CASE WHEN $2 = 'date' AND $3 = 'desc' THEN g.posted_date END DESC,
-    -- Sort by course name
-    CASE WHEN $2 = 'course' AND $3 = 'asc' THEN LOWER(c.course_name) END ASC,
-    CASE WHEN $2 = 'course' AND $3 = 'desc' THEN LOWER(c.course_name) END DESC,
+    CASE WHEN $3::text = 'date' AND $4::text = 'asc' THEN g.posted_date END ASC,
+    CASE WHEN $3::text = 'date' AND $4::text = 'desc' THEN g.posted_date END DESC,
+    -- Sort by assignment name
+    CASE WHEN $3::text = 'assignment' AND $4::text = 'asc' THEN LOWER(g.assignment_name) END ASC,
+    CASE WHEN $3::text = 'assignment' AND $4::text = 'desc' THEN LOWER(g.assignment_name) END DESC,
     -- Default fallback
     g.posted_date DESC,
     g.id ASC
-LIMIT $5
-OFFSET $4
+LIMIT $6::int
+OFFSET $5::int
 `
 
 type GetGradesParams struct {
-	Search     interface{}
-	SortBy     interface{}
-	SortDir    interface{}
+	CourseID   string
+	Search     string
+	SortBy     string
+	SortDir    string
 	PageOffset int32
 	NumRows    int32
 }
 
 type GetGradesRow struct {
-	ID            pgtype.UUID
-	Earned        pgtype.Int4
-	Total         pgtype.Int4
-	GStatus       GradeStatus
-	PostedDate    pgtype.Timestamptz
-	CourseName    string
-	CourseID      string
-	ProfessorName string
+	ID             pgtype.UUID
+	IDCourse       pgtype.UUID
+	AssignmentName string
+	Earned         pgtype.Int4
+	Total          pgtype.Int4
+	GStatus        GradeStatus
+	PostedDate     pgtype.Timestamptz
 }
 
 func (q *Queries) GetGrades(ctx context.Context, arg GetGradesParams) ([]GetGradesRow, error) {
 	rows, err := q.db.Query(ctx, getGrades,
+		arg.CourseID,
 		arg.Search,
 		arg.SortBy,
 		arg.SortDir,
@@ -148,13 +153,12 @@ func (q *Queries) GetGrades(ctx context.Context, arg GetGradesParams) ([]GetGrad
 		var i GetGradesRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.IDCourse,
+			&i.AssignmentName,
 			&i.Earned,
 			&i.Total,
 			&i.GStatus,
 			&i.PostedDate,
-			&i.CourseName,
-			&i.CourseID,
-			&i.ProfessorName,
 		); err != nil {
 			return nil, err
 		}
@@ -169,24 +173,27 @@ func (q *Queries) GetGrades(ctx context.Context, arg GetGradesParams) ([]GetGrad
 const updateGrade = `-- name: UpdateGrade :one
 UPDATE grades
 SET
-    earned = COALESCE($1, earned),
-    total = COALESCE($2, total),
-    g_status = COALESCE($3, g_status),
-    posted_date = COALESCE($4, posted_date)
-WHERE id = $5
-RETURNING id, id_course, earned, total, g_status, posted_date
+    assignment_name = COALESCE($1, assignment_name),
+    earned = COALESCE($2, earned),
+    total = COALESCE($3, total),
+    g_status = COALESCE($4, g_status),
+    posted_date = COALESCE($5, posted_date)
+WHERE id = $6
+RETURNING id, id_course, earned, total, g_status, posted_date, assignment_name
 `
 
 type UpdateGradeParams struct {
-	Earned     pgtype.Int4
-	Total      pgtype.Int4
-	GStatus    NullGradeStatus
-	PostedDate pgtype.Timestamptz
-	ID         pgtype.UUID
+	AssignmentName pgtype.Text
+	Earned         pgtype.Int4
+	Total          pgtype.Int4
+	GStatus        NullGradeStatus
+	PostedDate     pgtype.Timestamptz
+	ID             pgtype.UUID
 }
 
 func (q *Queries) UpdateGrade(ctx context.Context, arg UpdateGradeParams) (Grade, error) {
 	row := q.db.QueryRow(ctx, updateGrade,
+		arg.AssignmentName,
 		arg.Earned,
 		arg.Total,
 		arg.GStatus,
@@ -201,6 +208,7 @@ func (q *Queries) UpdateGrade(ctx context.Context, arg UpdateGradeParams) (Grade
 		&i.Total,
 		&i.GStatus,
 		&i.PostedDate,
+		&i.AssignmentName,
 	)
 	return i, err
 }
