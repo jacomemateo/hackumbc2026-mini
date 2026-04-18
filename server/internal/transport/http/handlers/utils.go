@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/jacomemateo/hackumbc2026-mini/server/internal/validation"
 	"github.com/labstack/echo/v5"
-	"github.com/go-playground/validator/v10"
 	"github.com/rs/zerolog/log"
 )
 
@@ -48,40 +48,65 @@ type SortFieldConfig struct {
 
 type ListQueryParams struct {
 	PaginationParams
-	Search  string
-	SortBy  string
-	SortDir string
+	CourseID string
+	Search   string
+	SortBy   string
+	SortDir  string
 }
 
 const (
 	SortDirectionAsc  = "asc"
 	SortDirectionDesc = "desc"
+	DefaultNumRows    = 50
+	DefaultPageOffset = 0
 )
 
 func ParsePagination(c *echo.Context) (*PaginationParams, error) {
 	numRowsStr := c.QueryParam("num_rows")
-	numRows, errL := strconv.ParseInt(numRowsStr, 10, 32)
-	if errL != nil {
-		log.Warn().Msgf("Failed to parse num_rows parameter: %s", numRowsStr)
-		return nil, c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Invalid num_rows parameter",
-		})
+	numRows := int64(DefaultNumRows)
+	if numRowsStr != "" {
+		parsedNumRows, errL := strconv.ParseInt(numRowsStr, 10, 32)
+		if errL != nil {
+			log.Warn().Msgf("Failed to parse num_rows parameter: %s", numRowsStr)
+			return nil, c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid num_rows parameter",
+			})
+		}
+		numRows = parsedNumRows
 	}
 
 	pageOffsetStr := c.QueryParam("page_offset")
-	pageOffset, errO := strconv.ParseInt(pageOffsetStr, 10, 32)
-	if errO != nil {
-		log.Warn().Msgf("Failed to parse page_offset parameter: %s", pageOffsetStr)
+	pageOffset := int64(DefaultPageOffset)
+	if pageOffsetStr != "" {
+		parsedPageOffset, errO := strconv.ParseInt(pageOffsetStr, 10, 32)
+		if errO != nil {
+			log.Warn().Msgf("Failed to parse page_offset parameter: %s", pageOffsetStr)
+			return nil, c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid page_offset parameter",
+			})
+		}
+		pageOffset = parsedPageOffset
+	}
+
+	if numRows <= 0 {
+		log.Warn().Msgf("Invalid num_rows parameter: %d", numRows)
 		return nil, c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Invalid page_offset parameter",
+			"error": "num_rows must be greater than 0",
+		})
+	}
+
+	if pageOffset < 0 {
+		log.Warn().Msgf("Invalid page_offset parameter: %d", pageOffset)
+		return nil, c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "page_offset must be greater than or equal to 0",
 		})
 	}
 
 	return &PaginationParams{NumRows: int(numRows), PageOffset: int(pageOffset)}, nil
 }
 
-func ParseSearch(c *echo.Context) string {
-	return strings.TrimSpace(c.QueryParam("search"))
+func ParseCourseID(c *echo.Context) string {
+	return strings.TrimSpace(c.QueryParam("course_id"))
 }
 
 func ParseListQuery(c *echo.Context, defaultSortBy string, defaultSortDir string, allowedSortFields map[string]SortFieldConfig) (*ListQueryParams, error) {
@@ -91,6 +116,7 @@ func ParseListQuery(c *echo.Context, defaultSortBy string, defaultSortDir string
 	}
 
 	search := ParseSearch(c)
+	courseID := ParseCourseID(c)
 	sortBy := strings.ToLower(strings.TrimSpace(c.QueryParam("sort_by")))
 	sortDir := strings.ToLower(strings.TrimSpace(c.QueryParam("sort_dir")))
 
@@ -104,6 +130,7 @@ func ParseListQuery(c *echo.Context, defaultSortBy string, defaultSortDir string
 	if sortBy == "" {
 		return &ListQueryParams{
 			PaginationParams: *paginationParams,
+			CourseID:         courseID,
 			Search:           search,
 			SortBy:           defaultSortBy,
 			SortDir:          defaultSortDir,
@@ -124,8 +151,13 @@ func ParseListQuery(c *echo.Context, defaultSortBy string, defaultSortDir string
 
 	return &ListQueryParams{
 		PaginationParams: *paginationParams,
+		CourseID:         courseID,
 		Search:           search,
 		SortBy:           sortBy,
 		SortDir:          sortDir,
 	}, nil
+}
+
+func ParseSearch(c *echo.Context) string {
+	return strings.TrimSpace(c.QueryParam("search"))
 }

@@ -15,10 +15,10 @@ import (
 )
 
 type Router struct {
-	handlers    []handlers.Handler
-	echo        *echo.Echo
-	database    *service.Database // Just store the Database, not the raw pool
-	config      *config.Config
+	handlers []handlers.Handler
+	echo     *echo.Echo
+	database *service.Database // Just store the Database, not the raw pool
+	config   *config.Config
 }
 
 func NewRouter(database *service.Database, config *config.Config) (*Router, error) {
@@ -66,9 +66,11 @@ func NewRouter(database *service.Database, config *config.Config) (*Router, erro
 	}
 
 	courseService := service.NewCourseService(database)
+	gradeService := service.NewGradeService(database)
 
 	r.handlers = []handlers.Handler{
 		handlers.NewCourseHandler(courseService),
+		handlers.NewGradeHandler(gradeService),
 	}
 
 	return &r, nil
@@ -110,8 +112,6 @@ func (r *Router) addRoutes() {
 			"time":   time.Now().String(),
 		})
 	})
-
-
 
 	for _, h := range r.handlers {
 		h.RegisterRoutes(api)

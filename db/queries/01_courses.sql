@@ -1,4 +1,4 @@
--- name: CreateCourse :exec
+-- name: CreateCourse :one
 INSERT INTO courses (
     course_name,
     course_id,

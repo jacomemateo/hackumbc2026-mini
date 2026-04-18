@@ -3,11 +3,8 @@ package service
 import (
 	"context"
 
-	// "github.com/jackc/pgx/v5/pgtype"
-
-	// "github.com/google/uuid"
+	"github.com/jacomemateo/hackumbc2026-mini/server/internal/repository"
 	"github.com/jacomemateo/hackumbc2026-mini/server/internal/transport/http/dto"
-	// "github.com/rs/zerolog/log"
 )
 
 type CourseService struct {
@@ -42,4 +39,22 @@ func (s *CourseService) GetCourses(ctx context.Context) ([]dto.CourseResponse, e
 	}
 
 	return response, nil
+}
+
+func (s *CourseService) CreateCourse(ctx context.Context, req dto.CreateCourseRequest) (dto.CourseResponse, error) {
+	course, err := s.database.Queries.CreateCourse(ctx, repository.CreateCourseParams{
+		CourseName:    req.CourseName,
+		CourseID:      req.CourseID,
+		ProfessorName: req.ProfessorName,
+	})
+	if err != nil {
+		return dto.CourseResponse{}, err
+	}
+
+	return dto.CourseResponse{
+		ID:            convertPgtypeUUIDToString(course.ID),
+		CourseName:    course.CourseName,
+		CourseID:      course.CourseID,
+		ProfessorName: course.ProfessorName,
+	}, nil
 }
