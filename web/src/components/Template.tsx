@@ -26,15 +26,6 @@ interface NavItem {
   path: string;
 }
 
-const STATIC_PAGES: NavItem[] = [
-  {
-    id: "settings",
-    label: "Settings",
-    icon: "⚙️",
-    path: "settings",
-  },
-];
-
 const courseToNavItem = (course: Course): NavItem => ({
   id: course.id,
   label: course.course_name,
@@ -77,7 +68,7 @@ const Template = () => {
   }, []);
 
   const coursePages = (courses ?? []).map(courseToNavItem);
-  const allPages = [...coursePages, ...STATIC_PAGES];
+  const allPages = [...coursePages];
 
   const isCourse = (pageId: string | null) =>
     pageId !== null && courses.some((c) => c.id === pageId);
