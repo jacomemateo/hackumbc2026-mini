@@ -26,6 +26,10 @@ func NewDatabase(ctx context.Context, connString string) (*Database, error) {
 		return nil, fmt.Errorf("ping database: %v", err)
 	}
 
+	if err := ensureCompatibleSchema(ctx, pool); err != nil {
+		return nil, fmt.Errorf("ensure compatible schema: %v", err)
+	}
+
 	d := &Database{
 		pool:    pool,
 		Queries: repository.New(pool),
@@ -47,4 +51,50 @@ func (d *Database) Close() {
 	if d.pool != nil {
 		d.pool.Close()
 	}
+}
+
+func ensureCompatibleSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	const ensureSchemaSQL = `
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'grades'
+          AND column_name = 'earned'
+          AND data_type <> 'double precision'
+    ) THEN
+        ALTER TABLE grades
+        ALTER COLUMN earned TYPE DOUBLE PRECISION
+        USING earned::DOUBLE PRECISION;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'grades'
+          AND column_name = 'total'
+          AND data_type <> 'double precision'
+    ) THEN
+        ALTER TABLE grades
+        ALTER COLUMN total TYPE DOUBLE PRECISION
+        USING total::DOUBLE PRECISION;
+    END IF;
+END $$;
+
+ALTER TABLE grades
+DROP CONSTRAINT IF EXISTS positive_grades;
+
+ALTER TABLE grades
+ADD CONSTRAINT positive_grades CHECK (
+    (earned IS NULL OR earned >= 0) AND
+    (total IS NULL OR total > 0)
+);
+`
+
+	_, err := pool.Exec(ctx, ensureSchemaSQL)
+	return err
 }

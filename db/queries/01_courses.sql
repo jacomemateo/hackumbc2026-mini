@@ -16,15 +16,17 @@ ORDER BY course_name ASC;
 SELECT * FROM courses
 WHERE id = $1;
 
--- name: UpsertCourseByCourseID :one
-INSERT INTO courses (
-    course_name,
-    course_id,
-    professor_name
-) VALUES (
-    $1, $2, $3
-)
-ON CONFLICT (course_id) DO UPDATE SET
-    course_name = EXCLUDED.course_name,
-    professor_name = EXCLUDED.professor_name
+-- name: GetCourseByCourseID :one
+SELECT * FROM courses
+WHERE course_id = $1
+ORDER BY id
+LIMIT 1;
+
+-- name: UpdateCourseByID :one
+UPDATE courses
+SET
+    course_name = $1,
+    course_id = $2,
+    professor_name = $3
+WHERE id = $4
 RETURNING *;

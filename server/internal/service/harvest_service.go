@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -81,13 +82,9 @@ func (s *HarvestService) importCourse(ctx context.Context, course dto.HarvestCou
 
 	queries := s.database.Queries.WithTx(tx)
 
-	dbCourse, err := queries.UpsertCourseByCourseID(ctx, repository.UpsertCourseByCourseIDParams{
-		CourseName:    courseName,
-		CourseID:      courseID,
-		ProfessorName: instructor,
-	})
+	dbCourse, err := ensureCourseRecord(ctx, queries, courseName, courseID, instructor)
 	if err != nil {
-		return 0, fmt.Errorf("upsert course: %w", err)
+		return 0, fmt.Errorf("ensure course: %w", err)
 	}
 
 	// Treat each harvest as the latest snapshot for a course.
@@ -129,8 +126,8 @@ func insertHarvestGrade(ctx context.Context, queries *repository.Queries, course
 		return fmt.Errorf("grade %q must include both earned and total or neither", assignmentName)
 	}
 
-	if grade.Grade.Earned != nil && *grade.Grade.Earned <= 0 {
-		return fmt.Errorf("grade %q has non-positive earned value", assignmentName)
+	if grade.Grade.Earned != nil && *grade.Grade.Earned < 0 {
+		return fmt.Errorf("grade %q has a negative earned value", assignmentName)
 	}
 
 	if grade.Grade.Total != nil && *grade.Grade.Total <= 0 {
@@ -159,7 +156,7 @@ func insertHarvestGrade(ctx context.Context, queries *repository.Queries, course
 func parseHarvestDate(value string) (time.Time, error) {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" || strings.EqualFold(trimmed, "none") {
-		return time.Time{}, fmt.Errorf("date is required")
+		return time.Now(), nil
 	}
 
 	for _, layout := range harvestDateLayouts {
@@ -181,4 +178,30 @@ func harvestStatusFromString(value string) (repository.GradeStatus, error) {
 	default:
 		return "", fmt.Errorf("unsupported status %q", value)
 	}
+}
+
+func ensureCourseRecord(ctx context.Context, queries *repository.Queries, courseName string, courseID string, instructor string) (repository.Course, error) {
+	existing, err := queries.GetCourseByCourseID(ctx, courseID)
+	if err == nil {
+		if existing.CourseName == courseName && existing.ProfessorName == instructor {
+			return existing, nil
+		}
+
+		return queries.UpdateCourseByID(ctx, repository.UpdateCourseByIDParams{
+			CourseName:    courseName,
+			CourseID:      courseID,
+			ProfessorName: instructor,
+			ID:            existing.ID,
+		})
+	}
+
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return repository.Course{}, err
+	}
+
+	return queries.CreateCourse(ctx, repository.CreateCourseParams{
+		CourseName:    courseName,
+		CourseID:      courseID,
+		ProfessorName: instructor,
+	})
 }

@@ -1,0 +1,16 @@
+ALTER TABLE grades
+ALTER COLUMN earned TYPE DOUBLE PRECISION
+USING earned::DOUBLE PRECISION;
+
+ALTER TABLE grades
+ALTER COLUMN total TYPE DOUBLE PRECISION
+USING total::DOUBLE PRECISION;
+
+ALTER TABLE grades
+DROP CONSTRAINT IF EXISTS positive_grades;
+
+ALTER TABLE grades
+ADD CONSTRAINT positive_grades CHECK (
+    (earned IS NULL OR earned >= 0) AND
+    (total IS NULL OR total > 0)
+);

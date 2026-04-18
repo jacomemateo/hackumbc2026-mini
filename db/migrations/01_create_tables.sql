@@ -10,7 +10,6 @@ CREATE TYPE grade_status AS ENUM (
 CREATE TABLE courses (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     course_name TEXT NOT NULL,
-    -- Added UNIQUE constraint here
     course_id TEXT NOT NULL UNIQUE, 
     professor_name TEXT NOT NULL
 );
@@ -20,14 +19,13 @@ CREATE TABLE grades (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     id_course UUID NOT NULL REFERENCES courses(id) ON DELETE RESTRICT,
     assignment_name TEXT NOT NULL, 
-    -- Changed from INT to DOUBLE PRECISION
     earned DOUBLE PRECISION,
     total DOUBLE PRECISION,
     g_status grade_status NOT NULL,
     posted_date TIMESTAMPTZ NOT NULL,
     
     CONSTRAINT positive_grades CHECK (
-        (earned IS NULL OR earned > 0) AND 
+        (earned IS NULL OR earned >= 0) AND 
         (total IS NULL OR total > 0)
     )
 );

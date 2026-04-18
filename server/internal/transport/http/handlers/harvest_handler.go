@@ -8,6 +8,7 @@ import (
 	"github.com/jacomemateo/hackumbc2026-mini/server/internal/service"
 	"github.com/jacomemateo/hackumbc2026-mini/server/internal/transport/http/dto"
 	"github.com/labstack/echo/v5"
+	"github.com/rs/zerolog/log"
 )
 
 type HarvestHandler struct {
@@ -50,6 +51,7 @@ func (h *HarvestHandler) ImportHarvest(c *echo.Context) error {
 
 	response, err := h.harvestService.ImportHarvest(c.Request().Context(), req)
 	if err != nil {
+		log.Error().Err(err).Int("course_count", len(req)).Msg("failed to import harvest")
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to import harvest",
 		})

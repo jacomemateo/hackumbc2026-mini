@@ -40,6 +40,25 @@ func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Cou
 	return i, err
 }
 
+const getCourseByCourseID = `-- name: GetCourseByCourseID :one
+SELECT id, course_name, course_id, professor_name FROM courses
+WHERE course_id = $1
+ORDER BY id
+LIMIT 1
+`
+
+func (q *Queries) GetCourseByCourseID(ctx context.Context, courseID string) (Course, error) {
+	row := q.db.QueryRow(ctx, getCourseByCourseID, courseID)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.CourseName,
+		&i.CourseID,
+		&i.ProfessorName,
+	)
+	return i, err
+}
+
 const getCourseByID = `-- name: GetCourseByID :one
 SELECT id, course_name, course_id, professor_name FROM courses
 WHERE id = $1
@@ -87,28 +106,30 @@ func (q *Queries) GetCourses(ctx context.Context) ([]Course, error) {
 	return items, nil
 }
 
-const upsertCourseByCourseID = `-- name: UpsertCourseByCourseID :one
-INSERT INTO courses (
-    course_name,
-    course_id,
-    professor_name
-) VALUES (
-    $1, $2, $3
-)
-ON CONFLICT (course_id) DO UPDATE SET
-    course_name = EXCLUDED.course_name,
-    professor_name = EXCLUDED.professor_name
+const updateCourseByID = `-- name: UpdateCourseByID :one
+UPDATE courses
+SET
+    course_name = $1,
+    course_id = $2,
+    professor_name = $3
+WHERE id = $4
 RETURNING id, course_name, course_id, professor_name
 `
 
-type UpsertCourseByCourseIDParams struct {
+type UpdateCourseByIDParams struct {
 	CourseName    string
 	CourseID      string
 	ProfessorName string
+	ID            pgtype.UUID
 }
 
-func (q *Queries) UpsertCourseByCourseID(ctx context.Context, arg UpsertCourseByCourseIDParams) (Course, error) {
-	row := q.db.QueryRow(ctx, upsertCourseByCourseID, arg.CourseName, arg.CourseID, arg.ProfessorName)
+func (q *Queries) UpdateCourseByID(ctx context.Context, arg UpdateCourseByIDParams) (Course, error) {
+	row := q.db.QueryRow(ctx, updateCourseByID,
+		arg.CourseName,
+		arg.CourseID,
+		arg.ProfessorName,
+		arg.ID,
+	)
 	var i Course
 	err := row.Scan(
 		&i.ID,

@@ -25,7 +25,7 @@ type GradeMutationResponse struct {
 type CreateGradeRequest struct {
 	CourseUUID     string    `json:"course_uuid" validate:"required,uuid"`
 	AssignmentName string    `json:"assignment_name" validate:"required"`
-	Earned         *float64  `json:"earned" validate:"omitempty,gt=0"`
+	Earned         *float64  `json:"earned" validate:"omitempty,gte=0"`
 	Total          *float64  `json:"total" validate:"omitempty,gt=0"`
 	Status         string    `json:"status" validate:"required,oneof=GRADED UNGRADED"`
 	PostedDate     time.Time `json:"posted_date" validate:"required"`
@@ -33,7 +33,7 @@ type CreateGradeRequest struct {
 
 type UpdateGradeRequest struct {
 	AssignmentName *string    `json:"assignment_name"`
-	Earned         *float64   `json:"earned" validate:"omitempty,gt=0"`
+	Earned         *float64   `json:"earned" validate:"omitempty,gte=0"`
 	Total          *float64   `json:"total" validate:"omitempty,gt=0"`
 	Status         *string    `json:"status" validate:"omitempty,oneof=GRADED UNGRADED"`
 	PostedDate     *time.Time `json:"posted_date"`
