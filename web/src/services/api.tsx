@@ -60,6 +60,14 @@ export type GradeCountOptions = {
     search?: string;
 };
 
+export type UploadedSyllabus = {
+    course_id: string;
+    original_filename: string;
+    content_type: string;
+    size_bytes: number;
+    uploaded_at: string;
+};
+
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
 const apiFetch = (input: string, init: RequestInit = {}) => {
@@ -193,3 +201,39 @@ export const deleteGrade = async (gradeID: string): Promise<void> => {
         throw error;
     }
 };
+
+// ─── Syllabus Uploads ─────────────────────────────────────────────────────────
+
+export const uploadSyllabus = async (
+    courseID: string,
+    file: File,
+): Promise<UploadedSyllabus> => {
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await apiFetch(`${API_BASE_URL}/api/courses/${courseID}/syllabus/upload`, {
+            method: "POST",
+            body: formData,
+        });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error(`Error uploading syllabus for course ${courseID}:`, error);
+        throw error;
+    }
+};
+
+export const getSyllabusMetadata = async (courseID: string): Promise<UploadedSyllabus> => {
+    try {
+        const response = await apiFetch(`${API_BASE_URL}/api/courses/${courseID}/syllabus`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error(`Error fetching syllabus for course ${courseID}:`, error);
+        throw error;
+    }
+};
+
+export const getSyllabusDownloadUrl = (courseID: string): string =>
+    `${API_BASE_URL}/api/courses/${courseID}/syllabus/download`;

@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { uploadSyllabus, SyllabusAnalysis } from "../services/syllabusService";
+import { uploadSyllabus } from "../services/syllabusService";
+import type { SyllabusFile } from "../services/syllabusService";
 
 interface UploadState {
   loading: boolean;
   error: string | null;
-  data: SyllabusAnalysis | null;
+  data: SyllabusFile | null;
 }
 
 export const useSyllabusUpload = () => {
