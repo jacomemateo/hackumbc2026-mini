@@ -1,6 +1,6 @@
 version: '3'
 
-wdotenv: ['.env']
+dotenv: ['.env']
 
 tasks:
   default:
@@ -29,7 +29,7 @@ tasks:
   connect:
     desc: Access the development database CLI
     cmds:
-      - docker exec -it vending-db-dev psql -U $APP_DB_USER -d $APP_DB_NAME
+      - docker exec -it db-dev psql -U ${APP_DB_USER} -d ${APP_DB_NAME}
 
   generate_sqlc:
     desc: Regenerate Go code from SQL queries
@@ -52,13 +52,13 @@ tasks:
       - |
         for file in db/seeds/*.sql; do
           echo "Seeding $file..."
-          docker exec -i vending-db-dev psql -U $APP_DB_USER -d $APP_DB_NAME < $file
+          docker exec -i db-dev psql -U $APP_DB_USER -d $APP_DB_NAME < $file
         done
 
   clear:
     desc: Clear all data from the development database
     cmds:
-      - docker exec -i vending-db-dev psql -U $APP_DB_USER -d $APP_DB_NAME < db/seeds/000_clear.sql
+      - docker exec -i db-dev psql -U $APP_DB_USER -d $APP_DB_NAME < db/seeds/000_clear.sql
 
 
   back:

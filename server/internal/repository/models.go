@@ -14,9 +14,8 @@ import (
 type GradeStatus string
 
 const (
-	GradeStatusGRADEED   GradeStatus = "GRADEED"
-	GradeStatusNOTGRADED GradeStatus = "NOT GRADED"
-	GradeStatusNA        GradeStatus = "N/A"
+	GradeStatusGRADED   GradeStatus = "GRADED"
+	GradeStatusUNGRADED GradeStatus = "UNGRADED"
 )
 
 func (e *GradeStatus) Scan(src interface{}) error {
@@ -64,7 +63,8 @@ type Course struct {
 type Grade struct {
 	ID         pgtype.UUID
 	IDCourse   pgtype.UUID
-	Grade      int32
+	Earned     pgtype.Int4
+	Total      pgtype.Int4
 	GStatus    GradeStatus
 	PostedDate pgtype.Timestamptz
 }

@@ -65,12 +65,10 @@ func NewRouter(database *service.Database, config *config.Config) (*Router, erro
 		log.Info().Str("CORS", "DISABLED").Msg("CORS Config")
 	}
 
-	// Initialize services (using database.queries)
-	// transactionsService := service.NewTransactionsService(database)
+	courseService := service.NewCourseService(database)
 
-	// Build handler list
 	r.handlers = []handlers.Handler{
-		// handlers.NewTransactionsService(productsService),
+		handlers.NewCourseHandler(courseService),
 	}
 
 	return &r, nil
@@ -114,9 +112,8 @@ func (r *Router) addRoutes() {
 	})
 
 
-	protectedAPI := api.Group("")
 
 	for _, h := range r.handlers {
-		h.RegisterRoutes(protectedAPI)
+		h.RegisterRoutes(api)
 	}
 }
