@@ -63,9 +63,9 @@ type Course struct {
 type Grade struct {
 	ID             pgtype.UUID
 	IDCourse       pgtype.UUID
+	AssignmentName string
 	Earned         pgtype.Int4
 	Total          pgtype.Int4
 	GStatus        GradeStatus
 	PostedDate     pgtype.Timestamptz
-	AssignmentName string
 }

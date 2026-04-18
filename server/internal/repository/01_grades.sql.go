@@ -42,7 +42,7 @@ INSERT INTO grades (
 ) VALUES (
     $1, $2, $3, $4, $5, $6
 )
-RETURNING id, id_course, earned, total, g_status, posted_date, assignment_name
+RETURNING id, id_course, assignment_name, earned, total, g_status, posted_date
 `
 
 type CreateGradeParams struct {
@@ -67,11 +67,11 @@ func (q *Queries) CreateGrade(ctx context.Context, arg CreateGradeParams) (Grade
 	err := row.Scan(
 		&i.ID,
 		&i.IDCourse,
+		&i.AssignmentName,
 		&i.Earned,
 		&i.Total,
 		&i.GStatus,
 		&i.PostedDate,
-		&i.AssignmentName,
 	)
 	return i, err
 }
@@ -125,17 +125,7 @@ type GetGradesParams struct {
 	NumRows    int32
 }
 
-type GetGradesRow struct {
-	ID             pgtype.UUID
-	IDCourse       pgtype.UUID
-	AssignmentName string
-	Earned         pgtype.Int4
-	Total          pgtype.Int4
-	GStatus        GradeStatus
-	PostedDate     pgtype.Timestamptz
-}
-
-func (q *Queries) GetGrades(ctx context.Context, arg GetGradesParams) ([]GetGradesRow, error) {
+func (q *Queries) GetGrades(ctx context.Context, arg GetGradesParams) ([]Grade, error) {
 	rows, err := q.db.Query(ctx, getGrades,
 		arg.CourseID,
 		arg.Search,
@@ -148,9 +138,9 @@ func (q *Queries) GetGrades(ctx context.Context, arg GetGradesParams) ([]GetGrad
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetGradesRow
+	var items []Grade
 	for rows.Next() {
-		var i GetGradesRow
+		var i Grade
 		if err := rows.Scan(
 			&i.ID,
 			&i.IDCourse,
@@ -179,7 +169,7 @@ SET
     g_status = COALESCE($4, g_status),
     posted_date = COALESCE($5, posted_date)
 WHERE id = $6
-RETURNING id, id_course, earned, total, g_status, posted_date, assignment_name
+RETURNING id, id_course, assignment_name, earned, total, g_status, posted_date
 `
 
 type UpdateGradeParams struct {
@@ -204,11 +194,11 @@ func (q *Queries) UpdateGrade(ctx context.Context, arg UpdateGradeParams) (Grade
 	err := row.Scan(
 		&i.ID,
 		&i.IDCourse,
+		&i.AssignmentName,
 		&i.Earned,
 		&i.Total,
 		&i.GStatus,
 		&i.PostedDate,
-		&i.AssignmentName,
 	)
 	return i, err
 }

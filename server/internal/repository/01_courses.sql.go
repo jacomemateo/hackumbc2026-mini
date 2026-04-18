@@ -7,6 +7,8 @@ package repository
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createCourse = `-- name: CreateCourse :one
@@ -28,6 +30,23 @@ type CreateCourseParams struct {
 
 func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Course, error) {
 	row := q.db.QueryRow(ctx, createCourse, arg.CourseName, arg.CourseID, arg.ProfessorName)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.CourseName,
+		&i.CourseID,
+		&i.ProfessorName,
+	)
+	return i, err
+}
+
+const getCourseByID = `-- name: GetCourseByID :one
+SELECT id, course_name, course_id, professor_name FROM courses
+WHERE id = $1
+`
+
+func (q *Queries) GetCourseByID(ctx context.Context, id pgtype.UUID) (Course, error) {
+	row := q.db.QueryRow(ctx, getCourseByID, id)
 	var i Course
 	err := row.Scan(
 		&i.ID,
