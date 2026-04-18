@@ -89,16 +89,24 @@ function parseRow(row) {
     : "Unknown";
 
   const date   = row.querySelector(BB_MAP.gradeTable.dueDate)?.innerText.trim()  || "None";
-  const status = row.querySelector(BB_MAP.gradeTable.status)?.innerText.trim()   || "N/A";
 
   const gradeCell = row.querySelector(BB_MAP.gradeTable.gradeCell);
-  let grade = BB_MAP.strings.defaultGrade;
+  let grade = { earned: null, total: null };
+  
   if (gradeCell) {
     const score = gradeCell.querySelector(BB_MAP.gradeTable.gradePill)?.innerText.trim();
     const total = gradeCell.querySelector(BB_MAP.gradeTable.totalPoints)?.innerText.trim();
-    const label = gradeCell.querySelector(BB_MAP.gradeTable.screenReaderLabel)?.innerText.trim();
-    grade = (score && total) ? `${score}/${total}` : (label || BB_MAP.strings.defaultGrade);
+    
+    if (score && total) {
+      grade = {
+        earned: parseFloat(score),
+        total: parseFloat(total)
+      };
+    }
   }
+
+  // Status is "Graded" if both earned and total exist, otherwise "Not Graded"
+  const status = (grade.earned !== null && grade.total !== null) ? "Graded" : "Not Graded";
 
   return { Assignment: name, Date: date, Status: status, Grade: grade };
 }
