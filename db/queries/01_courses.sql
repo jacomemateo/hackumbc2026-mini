@@ -11,3 +11,7 @@ RETURNING *;
 -- name: GetCourses :many
 SELECT * FROM courses
 ORDER BY course_name ASC;
+
+-- name: GetCourseByID :one
+SELECT * FROM courses
+WHERE id = $1;
