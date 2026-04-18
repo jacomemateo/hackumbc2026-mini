@@ -3,44 +3,59 @@
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
-  // ── Readiness ping from background ────────────────────────────────────────
-  // background.js polls this to know when the SPA has actually rendered content,
-  // replacing the old hardcoded 4-second setTimeout.
   if (message.action === "PING") {
-    const courseListReady = document.querySelectorAll(BB_MAP.courseList.itemCard).length > 0;
-    const gradePageReady  = document.querySelectorAll(BB_MAP.gradeTable.rows).length > 0;
-    sendResponse({ ready: courseListReady || gradePageReady });
-    return true; // Keep the message channel open for async sendResponse
+    const url = window.location.href;
+    const isCourseListPage = url.includes("/ultra/course") && !url.includes("/grades");
+    
+    let ready = false;
+    if (isCourseListPage) {
+      // WAIT for cards AND at least one instructor to render
+      const cards = document.querySelectorAll(BB_MAP.courseList.itemCard);
+      const instructors = document.querySelectorAll(BB_MAP.courseList.instructor);
+      ready = cards.length > 0 && instructors.length > 0;
+    } else {
+      // On Grade pages, just wait for the table rows
+      ready = document.querySelectorAll(BB_MAP.gradeTable.rows).length > 0;
+    }
+
+    sendResponse({ ready });
+    return true; 
   }
 
-  // ── Collect course IDs from the course list page ───────────────────────────
   if (message.action === "GET_COURSE_IDS") {
-  const courseElements = document.querySelectorAll(BB_MAP.courseList.itemCard);
+    const courseElements = document.querySelectorAll(BB_MAP.courseList.itemCard);
+    const ids = Array.from(courseElements)
+      .filter(card => {
+        const statusEl = card.querySelector(".status-text");
+        const statusText = statusEl?.innerText.trim().toLowerCase();
+        return statusText === BB_MAP.courseList.couseStatusOpen;
+      })
+      .map(card => {
+        const name = card.querySelector(BB_MAP.courseList.courseName)?.innerText.trim() ?? "Unknown Course";
+        const url = `https://blackboard.umbc.edu/ultra/courses/${card.getAttribute(BB_MAP.courseList.courseIdAttr)}/grades`;
+        
+        // Robust Extraction: Look for the <bdi> tag inside the instructor element
+        const instructorEl = card.querySelector(BB_MAP.courseList.instructor);
+        let instructorName = "Unknown Instructor";
 
-  const ids = Array.from(courseElements)
-    .filter(card => {
-      const statusEl = card.querySelector(".status-text");
-      const statusText = statusEl?.innerText.trim().toLowerCase();
+        if (instructorEl) {
+          const nameNode = instructorEl.querySelector('bdi') || instructorEl;
+          instructorName = nameNode.innerText.trim();
+        }
 
-      // include ONLY open courses
-      return statusText === BB_MAP.courseList.couseStatusOpen;
-    })
-    .map(card => ({
-      Name: card.querySelector(BB_MAP.courseList.courseName)?.innerText.trim() ?? "Unknown Course",
-      URL: `https://blackboard.umbc.edu/ultra/courses/${card.getAttribute(BB_MAP.courseList.courseIdAttr)}/grades`,
-    }));
-
-  chrome.runtime.sendMessage({ action: "IDS_COLLECTED", data: ids });
-}
+        return { Name: name, Instructor: instructorName, URL: url };
+      });
+    chrome.runtime.sendMessage({ action: "IDS_COLLECTED", data: ids });
+  }
 
   // ── Scrape grades for one course (with pagination) ─────────────────────────
   if (message.action === "SCRAPE_GRADES") {
-    handleMultiPageScrape(message.courseName);
+    handleMultiPageScrape(message.courseName, message.instructor);
   }
 });
 
 // ── Pagination-aware scraper ──────────────────────────────────────────────────
-async function handleMultiPageScrape(courseName) {
+async function handleMultiPageScrape(courseName, instructor) { // Add 'instructor' here
   try {
     let allPagesData = [];
     let hasNextPage  = true;
@@ -67,15 +82,14 @@ async function handleMultiPageScrape(courseName) {
     chrome.runtime.sendMessage({
       action:     "GRADES_COLLECTED",
       courseName: courseName,
+      instructor: instructor, // Send it back to background.js
       data:       allPagesData,
     });
-
   } catch (err) {
-    // Report the error back so background.js can skip this course gracefully
-    // rather than freezing the entire queue.
     chrome.runtime.sendMessage({
       action:     "SCRAPE_ERROR",
       courseName: courseName,
+      instructor: instructor, // Send it back even on error
       error:      err.message,
     });
   }

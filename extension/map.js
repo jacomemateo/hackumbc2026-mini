@@ -8,8 +8,8 @@ const BB_MAP = {
     itemCard:    'article[data-course-id]',
     courseName:  'h4',
     courseIdAttr: 'data-course-id',
-
     couseStatusOpen: 'open',
+    instructor:  '.instructors bb-username, .instructors .multi-users-title'
   },
 
   // ── Grade Table Page (/ultra/courses/:id/grades) ──────────────────────────
