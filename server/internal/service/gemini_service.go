@@ -76,6 +76,14 @@ func NewGeminiVertexService(project string, location string, apiKey string, mode
 		return service
 	}
 
+	if trimmedKey != "" {
+		log.Info().
+			Str("project", trimmedProject).
+			Str("location", trimmedLocation).
+			Msg("Ignoring API key because standard Vertex AI project/location auth is configured")
+		trimmedKey = ""
+	}
+
 	client, err := genai.NewClient(context.Background(), &genai.ClientConfig{
 		APIKey:   trimmedKey,
 		Project:  trimmedProject,
