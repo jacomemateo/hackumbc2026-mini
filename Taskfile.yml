@@ -1,0 +1,84 @@
+version: '3'
+
+dotenv: ['.env']
+
+tasks:
+  default:
+    cmds:
+      - task --list
+    silent: true
+
+  env-setup:
+    desc: Create the local development env file if it is missing
+    cmds:
+      - |
+        if test -f .env
+        then
+          echo ".env file already exists, skipping creation."
+        else
+          echo "Creating .env file from .env.example..."
+          cp .env.example .env
+        fi
+
+  dev:
+    desc: Start the shared Docker services for local Air and Vite development
+    cmds:
+      - task: env-setup
+      - docker compose -p outastock-dev --env-file .env -f docker-compose.yml up
+
+  connect:
+    desc: Access the development database CLI
+    cmds:
+      - docker exec -it vending-db-dev psql -U $APP_DB_USER -d $APP_DB_NAME
+
+  generate_sqlc:
+    desc: Regenerate Go code from SQL queries
+    cmds:
+      - docker run --rm -v {{.PWD}}:/src -w /src sqlc/sqlc generate
+
+  pretty:
+    desc: Run code formatters
+    cmds:
+      - |
+        cd backend/
+        gofumpt -w .
+        goimports -w .
+        cd ../web/
+        npm run pretty
+
+  seed:
+    desc: Run all database seeds on the development database
+    cmds:
+      - |
+        for file in db/seeds/*.sql; do
+          echo "Seeding $file..."
+          docker exec -i vending-db-dev psql -U $APP_DB_USER -d $APP_DB_NAME < $file
+        done
+
+  clear:
+    desc: Clear all data from the development database
+    cmds:
+      - docker exec -i vending-db-dev psql -U $APP_DB_USER -d $APP_DB_NAME < db/seeds/000_clear.sql
+
+
+  back:
+    desc: Run the Go backend locally with Air against the development stack
+    cmds:
+      - air
+
+  front:
+    desc: Run the Vite frontend locally against the development stack
+    dir: web
+    cmds:
+      - npm install
+      - npm run dev
+
+  down:
+    desc: Stop the development Docker services
+    cmds:
+      - docker compose -p outastock-dev --env-file .env.dev -f docker-compose.yml down
+
+  nuke:
+    desc: Stop and remove the development Docker services and local auth cache
+    cmds:
+      - docker compose -p outastock-dev --env-file .env -f docker-compose.yml down -v
