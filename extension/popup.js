@@ -16,12 +16,21 @@ chrome.storage.local.get(["lastHarvest"], ({ lastHarvest }) => {
   if (lastHarvest) {
     renderExportSection(lastHarvest);
     const timeStr = formatDate(lastHarvest.timestamp);
-    setStatus("ready", `Last harvest: ${timeStr}`);
+    if (lastHarvest.databaseSynced) {
+      setStatus("complete", `Database Populated · Last harvest: ${timeStr}`);
+    } else {
+      setStatus("ready", `Last harvest: ${timeStr}`);
+    }
   }
 });
 
 // ── Live updates from background.js ──────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message) => {
+  if (message.action === "DATABASE_SYNC_SUCCESS") {
+    setStatus("complete", message.text || "Database Populated");
+    return;
+  }
+
   if (message.action !== "POPUP_UPDATE") return;
 
   switch (message.status) {

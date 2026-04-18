@@ -55,6 +55,7 @@ chrome.runtime.onMessage.addListener((message, sender) => {
 
   if (message.action === "SCRAPE_ERROR") {
     allGrades.push({ 
+      course_id: message.courseId,
       course: message.courseName, 
       instructor: message.instructor, // Store it here too
       grades: [], 
@@ -92,7 +93,7 @@ function processNextCourse(tabId) {
   });
 }
 
-function finalize(tabId) {
+async function finalize(tabId) {
   const totalGrades   = allGrades.reduce((sum, c) => sum + c.grades.length, 0);
   const errorCourses  = allGrades.filter(c => c.error).length;
 
@@ -105,9 +106,72 @@ function finalize(tabId) {
   };
 
   chrome.storage.local.set({ lastHarvest: harvestRecord });
+  let completionText = "Harvest complete. Local JSON downloaded.";
 
+  try {
+    await triggerLocalJsonDownload(harvestRecord);
+  } catch (error) {
+    console.error("Local JSON download failed:", error);
+    completionText = "Harvest complete. JSON download failed.";
+  }
 
-  notifyPopup({ status: "complete",  harvest: harvestRecord });
+  notifyPopup({ status: "complete", text: completionText, harvest: harvestRecord });
+
+  try {
+    const syncResult = await syncHarvestToDatabase(harvestRecord.data);
+    chrome.storage.local.set({
+      lastHarvest: {
+        ...harvestRecord,
+        databaseSynced: true,
+        syncSummary: syncResult,
+      },
+    });
+    notifyDatabaseSyncSuccess(syncResult);
+  } catch (error) {
+    console.error("Database sync failed:", error);
+  }
+}
+
+function triggerLocalJsonDownload(harvestRecord) {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob(
+      [JSON.stringify(harvestRecord.data, null, 2)],
+      { type: "application/json" }
+    );
+    const url = URL.createObjectURL(blob);
+
+    chrome.downloads.download({
+      url,
+      filename: `BB_Grades_${formatDateFile(harvestRecord.timestamp)}.json`,
+      saveAs: false,
+    }, (downloadId) => {
+      const lastError = chrome.runtime.lastError;
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+
+      if (lastError) {
+        reject(new Error(lastError.message));
+        return;
+      }
+
+      resolve(downloadId);
+    });
+  });
+}
+
+async function syncHarvestToDatabase(gradesPayload) {
+  const response = await fetch("http://localhost:8080/api/harvest", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(gradesPayload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  return response.json();
 }
 
 // ── Page-Ready Detection ──────────────────────────────────────────────────────
@@ -145,4 +209,18 @@ function notifyPopup(payload) {
   chrome.runtime.sendMessage({ action: "POPUP_UPDATE", ...payload }, () => {
     void chrome.runtime.lastError; // Suppress "no receiving end" console error
   });
+}
+
+function notifyDatabaseSyncSuccess(syncResult) {
+  chrome.runtime.sendMessage({
+    action: "DATABASE_SYNC_SUCCESS",
+    text: "Database Populated",
+    syncResult,
+  }, () => {
+    void chrome.runtime.lastError;
+  });
+}
+
+function formatDateFile(ts) {
+  return new Date(ts).toISOString().slice(0, 10);
 }
