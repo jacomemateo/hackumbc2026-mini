@@ -44,13 +44,21 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   }
 
   if (message.action === "GRADES_COLLECTED") {
-    allGrades.push({ course: message.courseName, grades: message.data });
+    allGrades.push({ 
+      course: message.courseName, 
+      instructor: message.instructor, // Store it in your final array
+      grades: message.data 
+    });
     processNextCourse(sender.tab.id);
   }
 
   if (message.action === "SCRAPE_ERROR") {
-    // Don't let one bad course kill the entire run — record it and move on.
-    allGrades.push({ course: message.courseName, grades: [], error: message.error });
+    allGrades.push({ 
+      course: message.courseName, 
+      instructor: message.instructor, // Store it here too
+      grades: [], 
+      error: message.error 
+    });
     processNextCourse(sender.tab.id);
   }
 });
@@ -62,7 +70,7 @@ function processNextCourse(tabId) {
     return;
   }
 
-  const next      = courseQueue.shift();
+  const next = courseQueue.shift();
   const completed = totalCourses - courseQueue.length; // 1-based "currently processing"
 
   notifyPopup({
@@ -74,7 +82,12 @@ function processNextCourse(tabId) {
 
   chrome.tabs.update(tabId, { url: next.URL });
   waitForReady(tabId, () => {
-    chrome.tabs.sendMessage(tabId, { action: "SCRAPE_GRADES", courseName: next.Name });
+    // Send BOTH Name and Instructor to the content script
+    chrome.tabs.sendMessage(tabId, { 
+      action: "SCRAPE_GRADES", 
+      courseName: next.Name,
+      instructor: next.Instructor 
+    });
   });
 }
 

@@ -42,12 +42,12 @@ if (message.action === "GET_COURSE_IDS") {
 
   // ── Scrape grades for one course (with pagination) ─────────────────────────
   if (message.action === "SCRAPE_GRADES") {
-    handleMultiPageScrape(message.courseName);
+    handleMultiPageScrape(message.courseName, message.instructor);
   }
 });
 
 // ── Pagination-aware scraper ──────────────────────────────────────────────────
-async function handleMultiPageScrape(courseName) {
+async function handleMultiPageScrape(courseName, instructor) { // Add 'instructor' here
   try {
     let allPagesData = [];
     let hasNextPage  = true;
@@ -74,15 +74,14 @@ async function handleMultiPageScrape(courseName) {
     chrome.runtime.sendMessage({
       action:     "GRADES_COLLECTED",
       courseName: courseName,
+      instructor: instructor, // Send it back to background.js
       data:       allPagesData,
     });
-
   } catch (err) {
-    // Report the error back so background.js can skip this course gracefully
-    // rather than freezing the entire queue.
     chrome.runtime.sendMessage({
       action:     "SCRAPE_ERROR",
       courseName: courseName,
+      instructor: instructor, // Send it back even on error
       error:      err.message,
     });
   }
