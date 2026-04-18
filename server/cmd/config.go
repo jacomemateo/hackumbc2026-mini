@@ -9,9 +9,10 @@ import (
 )
 
 type Config struct {
-	DatabaseURL string
-	Port        string
-	LogLevel    string
+	DatabaseURL       string
+	Port              string
+	LogLevel          string
+	SyllabusUploadDir string
 }
 
 func Load() (*Config, error) {
@@ -60,6 +61,8 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	cfg.SyllabusUploadDir = GetEnvOrDefault("SYLLABUS_UPLOAD_DIR", "./uploads/syllabi")
 
 	return cfg, nil
 }
