@@ -200,7 +200,7 @@ const Template = () => {
         {/* Header */}
         <Box sx={{ padding: "20px", borderBottom: "1px solid #444" }}>
           <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-            Grade Tracker
+            Grade Harvestor
           </Typography>
         </Box>
 
@@ -254,7 +254,7 @@ const Template = () => {
         <Box
           sx={{
             padding: "20px 24px",
-            borderBottom: "1px solid #444",
+            // borderBottom: "1px solid #444",
             color: "#ecf0f1",
           }}
         >

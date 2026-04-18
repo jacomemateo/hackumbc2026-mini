@@ -48,7 +48,9 @@ const columns: GridColDef[] = [
     minWidth: 150,
     flex: 1,
     renderCell: (params) =>
-      params.value ? new Date(params.value as string).toLocaleDateString() : "—",
+      params.value
+        ? new Date(params.value as string).toLocaleDateString()
+        : "—",
   },
 ];
 
@@ -78,7 +80,9 @@ export const GradesTable = ({ courseId }: GradesTableProps) => {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load grades.");
+          setError(
+            err instanceof Error ? err.message : "Failed to load grades.",
+          );
         }
       } finally {
         if (!cancelled) {
@@ -98,7 +102,8 @@ export const GradesTable = ({ courseId }: GradesTableProps) => {
     () =>
       [...grades].sort(
         (left, right) =>
-          new Date(right.posted_date).getTime() - new Date(left.posted_date).getTime(),
+          new Date(right.posted_date).getTime() -
+          new Date(left.posted_date).getTime(),
       ),
     [grades],
   );
@@ -124,13 +129,20 @@ export const GradesTable = ({ courseId }: GradesTableProps) => {
         sx={{
           border: "1px solid rgba(255, 255, 255, 0.12)",
           backgroundColor: "rgba(16, 18, 28, 0.35)",
-          color: "#ecf0f1",
+          color: "#262B49",
           "& .MuiDataGrid-columnHeaders": {
-            backgroundColor: "rgba(255, 255, 255, 0.08)",
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
             borderBottomColor: "rgba(255, 255, 255, 0.12)",
+            color: "#262B49",
           },
           "& .MuiDataGrid-cell": {
             borderBottomColor: "rgba(255, 255, 255, 0.08)",
+            color: "#ecf0f1",
+          },
+          "& .MuiDataGrid-row": {
+            "&:hover": {
+              backgroundColor: "rgba(100, 150, 255, 0.08)",
+            },
           },
           "& .MuiDataGrid-columnSeparator": {
             color: "rgba(255, 255, 255, 0.12)",
