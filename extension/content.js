@@ -23,7 +23,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const statusText = statusEl?.innerText.trim().toLowerCase();
 
       // include ONLY open courses
-      return statusText === "open";
+      return statusText === BB_MAP.courseList.couseStatusOpen;
     })
     .map(card => ({
       Name: card.querySelector(BB_MAP.courseList.courseName)?.innerText.trim() ?? "Unknown Course",
