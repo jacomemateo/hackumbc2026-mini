@@ -20,8 +20,8 @@ WHERE (sqlc.arg(course_id)::text = '' OR g.id_course::text = sqlc.arg(course_id)
   AND (sqlc.arg(search)::text = '' OR g.assignment_name ILIKE '%' || sqlc.arg(search)::text || '%')
 ORDER BY
     -- Sort by grade value (Ratio calculation)
-    CASE WHEN sqlc.arg(sort_by)::text = 'grade' AND sqlc.arg(sort_dir)::text = 'asc' THEN (CAST(g.earned AS FLOAT) / NULLIF(g.total, 0)) END ASC NULLS FIRST,
-    CASE WHEN sqlc.arg(sort_by)::text = 'grade' AND sqlc.arg(sort_dir)::text = 'desc' THEN (CAST(g.earned AS FLOAT) / NULLIF(g.total, 0)) END DESC NULLS FIRST,
+    CASE WHEN sqlc.arg(sort_by)::text = 'grade' AND sqlc.arg(sort_dir)::text = 'asc' THEN (g.earned / NULLIF(g.total, 0)) END ASC NULLS FIRST,
+    CASE WHEN sqlc.arg(sort_by)::text = 'grade' AND sqlc.arg(sort_dir)::text = 'desc' THEN (g.earned / NULLIF(g.total, 0)) END DESC NULLS FIRST,
     -- Sort by date
     CASE WHEN sqlc.arg(sort_by)::text = 'date' AND sqlc.arg(sort_dir)::text = 'asc' THEN g.posted_date END ASC,
     CASE WHEN sqlc.arg(sort_by)::text = 'date' AND sqlc.arg(sort_dir)::text = 'desc' THEN g.posted_date END DESC,
@@ -61,3 +61,7 @@ RETURNING *;
 -- name: DeleteGrade :exec
 DELETE FROM grades
 WHERE id = @id;
+
+-- name: DeleteGradesByCourse :exec
+DELETE FROM grades
+WHERE id_course = @id_course;
