@@ -43,14 +43,15 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     processNextCourse(sender.tab.id);
   }
 
-  if (message.action === "GRADES_COLLECTED") {
-    allGrades.push({ 
-      course: message.courseName, 
-      instructor: message.instructor, // Store it in your final array
-      grades: message.data 
-    });
-    processNextCourse(sender.tab.id);
-  }
+ if (message.action === "GRADES_COLLECTED") {
+  allGrades.push({ 
+    course_id: message.courseId,   // Store separately
+    course: message.courseName,    // Now contains just the title
+    instructor: message.instructor, 
+    grades: message.data 
+  });
+  processNextCourse(sender.tab.id);
+}
 
   if (message.action === "SCRAPE_ERROR") {
     allGrades.push({ 
@@ -71,21 +72,21 @@ function processNextCourse(tabId) {
   }
 
   const next = courseQueue.shift();
-  const completed = totalCourses - courseQueue.length; // 1-based "currently processing"
+  const completed = totalCourses - courseQueue.length;
 
   notifyPopup({
     status:  "running",
-    text:    `Course ${completed} of ${totalCourses}: ${next.Name}`,
+    text:    `Course ${completed} of ${totalCourses}: ${next.courseId}`, // Show ID in popup
     current: completed,
     total:   totalCourses,
   });
 
   chrome.tabs.update(tabId, { url: next.URL });
   waitForReady(tabId, () => {
-    // Send BOTH Name and Instructor to the content script
     chrome.tabs.sendMessage(tabId, { 
       action: "SCRAPE_GRADES", 
-      courseName: next.Name,
+      courseId: next.courseId,     // NEW: Send ID
+      courseName: next.courseName, // NEW: Send Name
       instructor: next.Instructor 
     });
   });
