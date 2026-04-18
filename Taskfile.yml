@@ -1,6 +1,6 @@
 version: '3'
 
-dotenv: ['.env']
+wdotenv: ['.env']
 
 tasks:
   default:
@@ -24,7 +24,7 @@ tasks:
     desc: Start the shared Docker services for local Air and Vite development
     cmds:
       - task: env-setup
-      - docker compose -p outastock-dev --env-file .env -f docker-compose.yml up
+      - docker compose -p grade-harverster --env-file .env -f docker-compose.yml up
 
   connect:
     desc: Access the development database CLI
@@ -76,9 +76,9 @@ tasks:
   down:
     desc: Stop the development Docker services
     cmds:
-      - docker compose -p outastock-dev --env-file .env.dev -f docker-compose.yml down
+      - docker compose -p grade-harverster --env-file .env.dev -f docker-compose.yml down
 
   nuke:
     desc: Stop and remove the development Docker services and local auth cache
     cmds:
-      - docker compose -p outastock-dev --env-file .env -f docker-compose.yml down -v
+      - docker compose -p grade-harverster --env-file .env -f docker-compose.yml down -v

@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:18
-    container_name: vending-db-dev
+    container_name: db-dev
     environment:
       POSTGRES_USER: ${APP_DB_USER}
       POSTGRES_PASSWORD: ${APP_DB_PASSWORD}
