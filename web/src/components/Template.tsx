@@ -10,7 +10,14 @@ import {
   Button,
   CircularProgress,
 } from "@mui/material";
-import { fetchCourses, type Course } from "@/services/api";
+import {
+  fetchCourses,
+  getSyllabusDownloadUrl,
+  getSyllabusMetadata,
+  type Course,
+  type UploadedSyllabus,
+  uploadSyllabus,
+} from "@/services/api";
 
 interface NavItem {
   id: string;
@@ -40,6 +47,11 @@ const Template = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [courseError, setCourseError] = useState<string | null>(null);
+  const [loadingSyllabus, setLoadingSyllabus] = useState(false);
+  const [uploadingSyllabus, setUploadingSyllabus] = useState(false);
+  const [syllabusError, setSyllabusError] = useState<string | null>(null);
+  const [syllabusNotice, setSyllabusNotice] = useState<string | null>(null);
+  const [currentSyllabus, setCurrentSyllabus] = useState<UploadedSyllabus | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -70,26 +82,106 @@ const Template = () => {
   const isCourse = (pageId: string | null) =>
     pageId !== null && courses.some((c) => c.id === pageId);
 
+  const activeCourse = courses.find((course) => course.id === activePage) ?? null;
+
+  useEffect(() => {
+    if (!activeCourse) {
+      setCurrentSyllabus(null);
+      setSyllabusError(null);
+      setSyllabusNotice(null);
+      setLoadingSyllabus(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadSyllabus = async () => {
+      try {
+        setLoadingSyllabus(true);
+        setSyllabusError(null);
+        setSyllabusNotice(null);
+        const syllabus = await getSyllabusMetadata(activeCourse.id);
+        if (!cancelled) {
+          setCurrentSyllabus(syllabus);
+        }
+      } catch (err) {
+        if (cancelled) return;
+
+        const message = err instanceof Error ? err.message : "Unknown error";
+        if (message.includes("404")) {
+          setCurrentSyllabus(null);
+          return;
+        }
+
+        console.error("Failed to fetch syllabus metadata:", err);
+        setCurrentSyllabus(null);
+        setSyllabusError("Failed to load syllabus details.");
+      } finally {
+        if (!cancelled) {
+          setLoadingSyllabus(false);
+        }
+      }
+    };
+
+    loadSyllabus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCourse]);
+
   const DRAWER_WIDTH = 250;
 
   const handleUploadClick = () => {
+    setSyllabusNotice(null);
     fileInputRef.current?.click();
   };
 
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const files = event.target.files;
-    if (files && activePage) {
-      Array.from(files).forEach(async (file) => {
-        try {
-          // const analysis = await handleUpload(activePage, file);
-          // console.log("Syllabus analyzed:", analysis);
-        } catch (err) {
-          console.error("Upload failed:", err);
-        }
-      });
+    const file = event.target.files?.[0];
+    if (!file || !activeCourse) {
+      event.target.value = "";
+      return;
     }
+
+    setSyllabusNotice(null);
+    setSyllabusError(null);
+
+    if (!file.name.toLowerCase().endsWith(".pdf") || file.type && file.type !== "application/pdf") {
+      setSyllabusError("Only PDF files are supported.");
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      setUploadingSyllabus(true);
+      const uploaded = await uploadSyllabus(activeCourse.id, file);
+      setCurrentSyllabus(uploaded);
+      setSyllabusNotice(`Uploaded ${uploaded.original_filename} successfully.`);
+    } catch (err) {
+      console.error("Upload failed:", err);
+      const message = err instanceof Error ? err.message : "Upload failed.";
+      if (message.includes("413")) {
+        setSyllabusError("The PDF is too large. Maximum size is 10MB.");
+      } else if (message.includes("400")) {
+        setSyllabusError("Upload rejected. Only PDF files are supported.");
+      } else if (message.includes("404")) {
+        setSyllabusError("The selected course could not be found.");
+      } else {
+        setSyllabusError("Upload failed. Please try again.");
+      }
+    } finally {
+      setUploadingSyllabus(false);
+      event.target.value = "";
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   return (
@@ -216,10 +308,13 @@ const Template = () => {
                   {page.icon}
                 </ListItemIcon>
                 <ListItemText
-                  primary={page.label}
-                  primaryTypographyProps={{
-                    sx: { fontSize: "13px", fontWeight: 500, lineHeight: 1.2 },
-                  }}
+                  primary={
+                    <Typography
+                      sx={{ fontSize: "13px", fontWeight: 500, lineHeight: 1.2 }}
+                    >
+                      {page.label}
+                    </Typography>
+                  }
                 />
               </ListItemButton>
             ))}
@@ -249,19 +344,82 @@ const Template = () => {
         >
           {/* Upload Syllabus Button - Only show for course pages */}
           {isCourse(activePage) && (
-            <Button
-              variant="contained"
-              onClick={handleUploadClick}
+            <Box
               sx={{
-                alignSelf: "flex-start",
-                backgroundColor: "#3498db",
-                "&:hover": {
-                  backgroundColor: "#2980b9",
-                },
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+                alignItems: "flex-start",
               }}
             >
-              ⬆ Upload Syllabus
-            </Button>
+              <Button
+                variant="contained"
+                onClick={handleUploadClick}
+                disabled={uploadingSyllabus}
+                sx={{
+                  alignSelf: "flex-start",
+                  backgroundColor: "#3498db",
+                  "&:hover": {
+                    backgroundColor: "#2980b9",
+                  },
+                }}
+              >
+                {uploadingSyllabus ? "Uploading PDF..." : "⬆ Upload Syllabus"}
+              </Button>
+
+              <Typography sx={{ fontSize: "13px", color: "#bdc3c7" }}>
+                {activeCourse?.course_name}: PDF only, max 10MB.
+              </Typography>
+
+              {loadingSyllabus && (
+                <Typography sx={{ fontSize: "13px", color: "#bdc3c7" }}>
+                  Checking uploaded syllabus...
+                </Typography>
+              )}
+
+              {!loadingSyllabus && currentSyllabus && (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <Typography sx={{ fontSize: "13px", color: "#ecf0f1" }}>
+                    Current syllabus: {currentSyllabus.original_filename}
+                  </Typography>
+                  <Typography sx={{ fontSize: "12px", color: "#bdc3c7" }}>
+                    Uploaded {new Date(currentSyllabus.uploaded_at).toLocaleString()} · {formatFileSize(currentSyllabus.size_bytes)}
+                  </Typography>
+                  <Button
+                    component="a"
+                    href={getSyllabusDownloadUrl(activeCourse!.id)}
+                    target="_blank"
+                    rel="noreferrer"
+                    variant="outlined"
+                    sx={{
+                      alignSelf: "flex-start",
+                      color: "#ecf0f1",
+                      borderColor: "rgba(236, 240, 241, 0.35)",
+                    }}
+                  >
+                    Download Current Syllabus
+                  </Button>
+                </Box>
+              )}
+
+              {!loadingSyllabus && !currentSyllabus && !syllabusError && (
+                <Typography sx={{ fontSize: "13px", color: "#bdc3c7" }}>
+                  No syllabus uploaded for this course yet.
+                </Typography>
+              )}
+
+              {syllabusNotice && (
+                <Typography sx={{ fontSize: "13px", color: "#2ecc71" }}>
+                  {syllabusNotice}
+                </Typography>
+              )}
+
+              {syllabusError && (
+                <Typography sx={{ fontSize: "13px", color: "#e74c3c" }}>
+                  {syllabusError}
+                </Typography>
+              )}
+            </Box>
           )}
 
           {/* Hidden File Input */}
@@ -269,9 +427,8 @@ const Template = () => {
             ref={fileInputRef}
             type="file"
             onChange={handleFileChange}
-            multiple
             style={{ display: "none" }}
-            accept=".pdf,.doc,.docx,.txt"
+            accept=".pdf,application/pdf"
           />
         </Box>
       </Box>

@@ -70,6 +70,96 @@ Response:
 }
 ```
 
+## Syllabi
+
+### `POST /api/courses/:courseID/syllabus/upload`
+
+Uploads or replaces the syllabus PDF for a course.
+
+Rules:
+
+- Only `.pdf` files are accepted.
+- The uploaded file must have PDF content.
+- Maximum file size is `10MB`.
+- `courseID` must be the course UUID from `GET /api/courses`.
+
+Request:
+
+- Content type: `multipart/form-data`
+- Form field: `file`
+
+Example:
+
+```bash
+COURSE_UUID="<id from GET /api/courses>"
+
+curl -X POST "http://localhost:8080/api/courses/$COURSE_UUID/syllabus/upload" \
+  -F "file=@/absolute/path/to/syllabus.pdf;type=application/pdf"
+```
+
+Response:
+
+```json
+{
+  "course_id": "019da206-187b-7daa-a281-00897541b913",
+  "original_filename": "syllabus.pdf",
+  "content_type": "application/pdf",
+  "size_bytes": 460,
+  "uploaded_at": "2026-04-18T19:35:07.240401Z"
+}
+```
+
+### `GET /api/courses/:courseID/syllabus`
+
+Returns metadata for the currently uploaded syllabus PDF.
+
+Example:
+
+```bash
+COURSE_UUID="<id from GET /api/courses>"
+
+curl "http://localhost:8080/api/courses/$COURSE_UUID/syllabus"
+```
+
+Response:
+
+```json
+{
+  "course_id": "019da206-187b-7daa-a281-00897541b913",
+  "original_filename": "syllabus.pdf",
+  "content_type": "application/pdf",
+  "size_bytes": 460,
+  "uploaded_at": "2026-04-18T19:35:07.240401Z"
+}
+```
+
+### `GET /api/courses/:courseID/syllabus/download`
+
+Downloads the stored syllabus PDF for a course.
+
+Example:
+
+```bash
+COURSE_UUID="<id from GET /api/courses>"
+
+curl -L "http://localhost:8080/api/courses/$COURSE_UUID/syllabus/download" \
+  -o /tmp/downloaded-syllabus.pdf
+```
+
+### How To Verify Uploading Works
+
+1. Open the app, select a course in the sidebar, and click `Upload Syllabus`.
+2. Choose a `.pdf` file. The UI should show the uploaded filename, upload time, and a `Download Current Syllabus` button.
+3. Call `GET /api/courses/:courseID/syllabus` and confirm the metadata matches the uploaded file.
+4. Call `GET /api/courses/:courseID/syllabus/download` and confirm the downloaded file opens as a PDF.
+5. By default, the file is stored under `./uploads/syllabi/<courseID>/syllabus.pdf` relative to the server process working directory.
+
+### Upload Errors
+
+- Invalid file type returns `400 Bad Request`.
+- Files larger than `10MB` return `413 Request Entity Too Large`.
+- Unknown course IDs return `404 Not Found`.
+
 ## Grades
 
 ### `GET /api/grades`
