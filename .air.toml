@@ -1,18 +1,18 @@
 root = "."
 testdata_dir = "testdata"
-tmp_dir = "backend/out/dev"
+tmp_dir = "server/out/dev"
 env_files = [".env"]
 
 [build]
 args_bin = []
-pre_cmd = ["mkdir -p backend/out/dev"]
-entrypoint = "./backend/out/dev/server_dev"
-cmd = "cd backend && go build -o ./out/dev/server_dev ./cmd/api"
+pre_cmd = ["mkdir -p server/out/dev"]
+entrypoint = "./server/out/dev/server_dev"
+cmd = "cd server && go build -o ./out/dev/server_dev ./cmd/api"
 delay = 1000
 
 # Includes
 include_ext = ["go", "mod"]
-include_dir = ["backend"]
+include_dir = ["server"]
 
 # Excludes
 exclude_pattern = ["_test.go"]
