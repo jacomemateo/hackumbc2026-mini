@@ -48,8 +48,8 @@ RETURNING id, id_course, assignment_name, earned, total, g_status, posted_date
 type CreateGradeParams struct {
 	IDCourse       pgtype.UUID
 	AssignmentName string
-	Earned         pgtype.Int4
-	Total          pgtype.Int4
+	Earned         pgtype.Float8
+	Total          pgtype.Float8
 	GStatus        GradeStatus
 	PostedDate     pgtype.Timestamptz
 }
@@ -86,6 +86,16 @@ func (q *Queries) DeleteGrade(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
+const deleteGradesByCourse = `-- name: DeleteGradesByCourse :exec
+DELETE FROM grades
+WHERE id_course = $1
+`
+
+func (q *Queries) DeleteGradesByCourse(ctx context.Context, idCourse pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteGradesByCourse, idCourse)
+	return err
+}
+
 const getGrades = `-- name: GetGrades :many
 SELECT
     g.id,
@@ -101,8 +111,8 @@ WHERE ($1::text = '' OR g.id_course::text = $1::text OR c.course_id = $1::text)
   AND ($2::text = '' OR g.assignment_name ILIKE '%' || $2::text || '%')
 ORDER BY
     -- Sort by grade value (Ratio calculation)
-    CASE WHEN $3::text = 'grade' AND $4::text = 'asc' THEN (CAST(g.earned AS FLOAT) / NULLIF(g.total, 0)) END ASC NULLS FIRST,
-    CASE WHEN $3::text = 'grade' AND $4::text = 'desc' THEN (CAST(g.earned AS FLOAT) / NULLIF(g.total, 0)) END DESC NULLS FIRST,
+    CASE WHEN $3::text = 'grade' AND $4::text = 'asc' THEN (g.earned / NULLIF(g.total, 0)) END ASC NULLS FIRST,
+    CASE WHEN $3::text = 'grade' AND $4::text = 'desc' THEN (g.earned / NULLIF(g.total, 0)) END DESC NULLS FIRST,
     -- Sort by date
     CASE WHEN $3::text = 'date' AND $4::text = 'asc' THEN g.posted_date END ASC,
     CASE WHEN $3::text = 'date' AND $4::text = 'desc' THEN g.posted_date END DESC,
@@ -174,8 +184,8 @@ RETURNING id, id_course, assignment_name, earned, total, g_status, posted_date
 
 type UpdateGradeParams struct {
 	AssignmentName pgtype.Text
-	Earned         pgtype.Int4
-	Total          pgtype.Int4
+	Earned         pgtype.Float8
+	Total          pgtype.Float8
 	GStatus        NullGradeStatus
 	PostedDate     pgtype.Timestamptz
 	ID             pgtype.UUID

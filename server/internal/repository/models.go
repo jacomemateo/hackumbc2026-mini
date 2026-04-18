@@ -64,8 +64,8 @@ type Grade struct {
 	ID             pgtype.UUID
 	IDCourse       pgtype.UUID
 	AssignmentName string
-	Earned         pgtype.Int4
-	Total          pgtype.Int4
+	Earned         pgtype.Float8
+	Total          pgtype.Float8
 	GStatus        GradeStatus
 	PostedDate     pgtype.Timestamptz
 }

@@ -86,3 +86,35 @@ func (q *Queries) GetCourses(ctx context.Context) ([]Course, error) {
 	}
 	return items, nil
 }
+
+const upsertCourseByCourseID = `-- name: UpsertCourseByCourseID :one
+INSERT INTO courses (
+    course_name,
+    course_id,
+    professor_name
+) VALUES (
+    $1, $2, $3
+)
+ON CONFLICT (course_id) DO UPDATE SET
+    course_name = EXCLUDED.course_name,
+    professor_name = EXCLUDED.professor_name
+RETURNING id, course_name, course_id, professor_name
+`
+
+type UpsertCourseByCourseIDParams struct {
+	CourseName    string
+	CourseID      string
+	ProfessorName string
+}
+
+func (q *Queries) UpsertCourseByCourseID(ctx context.Context, arg UpsertCourseByCourseIDParams) (Course, error) {
+	row := q.db.QueryRow(ctx, upsertCourseByCourseID, arg.CourseName, arg.CourseID, arg.ProfessorName)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.CourseName,
+		&i.CourseID,
+		&i.ProfessorName,
+	)
+	return i, err
+}
