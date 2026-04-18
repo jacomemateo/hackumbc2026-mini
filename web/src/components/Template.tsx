@@ -247,7 +247,6 @@ const Template = () => {
             flexDirection: "column",
             gap: "4px",
             padding: "16px 12px",
-            flex: 1,
           }}
         >
           {/* Course loading state */}
