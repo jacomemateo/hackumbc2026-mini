@@ -1,20 +1,20 @@
 // content.js — Runs inside Blackboard tabs. Scrapes data and reports back.
-// BB_MAP and BB_CONFIG are injected before this script by manifest.json (map.js).
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
+  // ── Smart Page Readiness ──────────────────────────────────────────────────
   if (message.action === "PING") {
     const url = window.location.href;
     const isCourseListPage = url.includes("/ultra/course") && !url.includes("/grades");
     
     let ready = false;
     if (isCourseListPage) {
-      // WAIT for cards AND at least one instructor to render
+      // On Course List: Wait for cards AND instructor names to load
       const cards = document.querySelectorAll(BB_MAP.courseList.itemCard);
       const instructors = document.querySelectorAll(BB_MAP.courseList.instructor);
       ready = cards.length > 0 && instructors.length > 0;
     } else {
-      // On Grade pages, just wait for the table rows
+      // On Grade pages: Just wait for the table rows to appear
       ready = document.querySelectorAll(BB_MAP.gradeTable.rows).length > 0;
     }
 
@@ -22,6 +22,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; 
   }
 
+  // ── Course ID Collection with Regex Split ─────────────────────────────────
   if (message.action === "GET_COURSE_IDS") {
     const courseElements = document.querySelectorAll(BB_MAP.courseList.itemCard);
     const ids = Array.from(courseElements)
@@ -31,46 +32,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return statusText === BB_MAP.courseList.couseStatusOpen;
       })
       .map(card => {
-        const name = card.querySelector(BB_MAP.courseList.courseName)?.innerText.trim() ?? "Unknown Course";
+        const rawName = card.querySelector(BB_MAP.courseList.courseName)?.innerText.trim() ?? "Unknown Course";
         const url = `https://blackboard.umbc.edu/ultra/courses/${card.getAttribute(BB_MAP.courseList.courseIdAttr)}/grades`;
         
-        // Robust Extraction: Look for the <bdi> tag inside the instructor element
+        // Split logic: Course ID (first 2 words) and Title (until first "(")
+        const words = rawName.split(' ');
+        const courseId = words.slice(0, 2).join(' ');
+        const remaining = words.slice(2).join(' ');
+        const courseTitle = remaining.split('(')[0].trim() || rawName;
+
         const instructorEl = card.querySelector(BB_MAP.courseList.instructor);
         let instructorName = "Unknown Instructor";
-
         if (instructorEl) {
           const nameNode = instructorEl.querySelector('bdi') || instructorEl;
           instructorName = nameNode.innerText.trim();
         }
 
-        return { Name: name, Instructor: instructorName, URL: url };
+        return { courseId, courseName: courseTitle, Instructor: instructorName, URL: url };
       });
     chrome.runtime.sendMessage({ action: "IDS_COLLECTED", data: ids });
   }
 
-  // ── Scrape grades for one course (with pagination) ─────────────────────────
+  // ── Scrape grades for one course ──────────────────────────────────────────
   if (message.action === "SCRAPE_GRADES") {
-    handleMultiPageScrape(message.courseName, message.instructor);
+    // FIX: Pass all three arguments correctly
+    handleMultiPageScrape(message.courseId, message.courseName, message.instructor);
   }
 });
 
 // ── Pagination-aware scraper ──────────────────────────────────────────────────
-async function handleMultiPageScrape(courseName, instructor) { // Add 'instructor' here
+async function handleMultiPageScrape(courseId, courseName, instructor) { // FIX: Added courseId parameter
   try {
     let allPagesData = [];
     let hasNextPage  = true;
 
     while (hasNextPage) {
-      // 1. Scrape every visible row on the current page.
-      const rows    = document.querySelectorAll(BB_MAP.gradeTable.rows);
+      const rows = document.querySelectorAll(BB_MAP.gradeTable.rows);
       const pageData = Array.from(rows).map(parseRow);
-      allPagesData  = allPagesData.concat(pageData);
+      allPagesData = allPagesData.concat(pageData);
 
-      // 2. Advance to next page if one exists and isn't disabled.
       const nextBtn = document.querySelector(BB_MAP.gradeTable.nextPageBtn);
       if (nextBtn && !nextBtn.hasAttribute("disabled")) {
-        // Snapshot the current first row's text so we can detect when
-        // the DOM has actually updated (replaces the old 2-second timeout).
         const firstRowSnapshot = document.querySelector(BB_MAP.gradeTable.rows)?.textContent ?? "";
         nextBtn.click();
         await waitForTableChange(firstRowSnapshot);
@@ -79,21 +81,25 @@ async function handleMultiPageScrape(courseName, instructor) { // Add 'instructo
       }
     }
 
+    // Report results back to background.js
     chrome.runtime.sendMessage({
       action:     "GRADES_COLLECTED",
+      courseId:   courseId,   // Now correctly defined
       courseName: courseName,
-      instructor: instructor, // Send it back to background.js
+      instructor: instructor,
       data:       allPagesData,
     });
   } catch (err) {
     chrome.runtime.sendMessage({
       action:     "SCRAPE_ERROR",
+      courseId:   courseId,
       courseName: courseName,
-      instructor: instructor, // Send it back even on error
+      instructor: instructor,
       error:      err.message,
     });
   }
 }
+
 
 // ── Row Parser ────────────────────────────────────────────────────────────────
 function parseRow(row) {
