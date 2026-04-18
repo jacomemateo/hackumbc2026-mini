@@ -67,10 +67,12 @@ func NewRouter(database *service.Database, config *config.Config) (*Router, erro
 
 	courseService := service.NewCourseService(database)
 	gradeService := service.NewGradeService(database)
+	syllabusService := service.NewSyllabusService(database, config.SyllabusUploadDir)
 
 	r.handlers = []handlers.Handler{
 		handlers.NewCourseHandler(courseService),
 		handlers.NewGradeHandler(gradeService),
+		handlers.NewSyllabusHandler(syllabusService),
 	}
 
 	return &r, nil
