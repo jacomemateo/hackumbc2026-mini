@@ -53,26 +53,43 @@ type reconciliationMatch struct {
 }
 
 func NewGeminiService(apiKey string, model string) *GeminiService {
+	return NewGeminiVertexService("", "", apiKey, model)
+}
+
+func NewGeminiVertexService(project string, location string, apiKey string, model string) *GeminiService {
 	service := &GeminiService{
 		model: strings.TrimSpace(model),
 	}
 	if service.model == "" {
-		service.model = "gemini-1.5-pro"
+		service.model = "gemini-2.5-pro"
 	}
 
+	trimmedProject := strings.TrimSpace(project)
+	trimmedLocation := strings.TrimSpace(location)
 	trimmedKey := strings.TrimSpace(apiKey)
-	if trimmedKey == "" {
-		service.initErr = fmt.Errorf("%w: missing api key", ErrGeminiUnavailable)
+	if trimmedProject == "" {
+		service.initErr = fmt.Errorf("%w: missing Vertex AI project", ErrGeminiUnavailable)
+		return service
+	}
+	if trimmedLocation == "" {
+		service.initErr = fmt.Errorf("%w: missing Vertex AI location", ErrGeminiUnavailable)
 		return service
 	}
 
 	client, err := genai.NewClient(context.Background(), &genai.ClientConfig{
-		APIKey:  trimmedKey,
-		Backend: genai.BackendGeminiAPI,
+		APIKey:   trimmedKey,
+		Project:  trimmedProject,
+		Location: trimmedLocation,
+		Backend:  genai.BackendVertexAI,
 	})
 	if err != nil {
 		service.initErr = fmt.Errorf("%w: %v", ErrGeminiUnavailable, err)
-		log.Warn().Err(err).Str("model", service.model).Msg("Gemini client initialization failed")
+		log.Warn().
+			Err(err).
+			Str("project", trimmedProject).
+			Str("location", trimmedLocation).
+			Str("model", service.model).
+			Msg("Vertex AI client initialization failed")
 		return service
 	}
 
@@ -90,7 +107,7 @@ func (s *GeminiService) ExtractCategoriesFromPDF(ctx context.Context, originalFi
 		DisplayName: originalFilename,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("upload pdf to gemini: %w", err)
+		return nil, fmt.Errorf("upload pdf to Vertex AI: %w", err)
 	}
 	defer s.deleteUploadedFile(ctx, file.Name)
 
@@ -122,12 +139,12 @@ Return JSON with this exact shape:
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("extract categories with gemini: %w", err)
+		return nil, fmt.Errorf("extract categories with Vertex AI: %w", err)
 	}
 
 	var parsed syllabusCategoryEnvelope
 	if err := json.Unmarshal([]byte(strings.TrimSpace(response.Text())), &parsed); err != nil {
-		return nil, fmt.Errorf("decode gemini category response: %w", err)
+		return nil, fmt.Errorf("decode Vertex AI category response: %w", err)
 	}
 
 	normalized := make([]syllabusCategory, 0, len(parsed.Categories))
@@ -196,12 +213,12 @@ Data:
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("categorize assignments with gemini: %w", err)
+		return nil, fmt.Errorf("categorize assignments with Vertex AI: %w", err)
 	}
 
 	var parsed reconciliationEnvelope
 	if err := json.Unmarshal([]byte(strings.TrimSpace(response.Text())), &parsed); err != nil {
-		return nil, fmt.Errorf("decode gemini reconciliation response: %w", err)
+		return nil, fmt.Errorf("decode Vertex AI reconciliation response: %w", err)
 	}
 
 	validAssignments := make(map[string]struct{}, len(assignments))
@@ -217,7 +234,7 @@ Data:
 	matches := make(map[string]*string, len(parsed.Matches))
 	for _, match := range parsed.Matches {
 		if _, ok := validAssignments[match.AssignmentID]; !ok {
-			return nil, fmt.Errorf("gemini returned unknown assignment id %q", match.AssignmentID)
+			return nil, fmt.Errorf("Vertex AI returned unknown assignment id %q", match.AssignmentID)
 		}
 
 		if match.CategoryID != nil {
@@ -226,7 +243,7 @@ Data:
 				match.CategoryID = nil
 			} else {
 				if _, ok := validCategories[trimmed]; !ok {
-					return nil, fmt.Errorf("gemini returned unknown category id %q", trimmed)
+					return nil, fmt.Errorf("Vertex AI returned unknown category id %q", trimmed)
 				}
 				match.CategoryID = stringPtr(trimmed)
 			}
@@ -254,7 +271,7 @@ func (s *GeminiService) deleteUploadedFile(ctx context.Context, name string) {
 	}
 
 	if _, err := s.client.Files.Delete(ctx, name, nil); err != nil {
-		log.Warn().Err(err).Str("file", name).Msg("Failed to delete uploaded Gemini file")
+		log.Warn().Err(err).Str("file", name).Msg("Failed to delete uploaded Vertex AI file")
 	}
 }
 

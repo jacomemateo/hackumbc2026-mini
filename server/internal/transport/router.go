@@ -67,7 +67,12 @@ func NewRouter(database *service.Database, config *config.Config) (*Router, erro
 
 	courseService := service.NewCourseService(database)
 	categoryService := service.NewCategoryService(database)
-	geminiService := service.NewGeminiService(config.GeminiAPIKey, config.GeminiModel)
+	geminiService := service.NewGeminiVertexService(
+		config.VertexAIProject,
+		config.VertexAILocation,
+		config.VertexAIAPIKey,
+		config.VertexAIModel,
+	)
 	reconcilerService := service.NewReconcilerService(database, geminiService)
 	gradeService := service.NewGradeService(database)
 	harvestService := service.NewHarvestService(database, reconcilerService)

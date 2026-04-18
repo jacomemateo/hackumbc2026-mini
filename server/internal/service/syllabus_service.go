@@ -270,16 +270,24 @@ func syllabusMetadataToResponse(metadata syllabusMetadata) dto.SyllabusFileRespo
 }
 
 func parseFailureMessage(err error) string {
+	lowerErr := strings.ToLower(err.Error())
+
 	switch {
 	case errors.Is(err, ErrGeminiUnavailable):
-		return "Syllabus uploaded, but automatic category extraction is unavailable because Gemini is not configured on the backend."
+		return "Syllabus uploaded, but automatic category extraction is unavailable because Vertex AI is not configured on the backend."
 	case errors.Is(err, ErrNoCategoriesExtracted):
 		return "Syllabus uploaded, but no grading categories could be extracted from this PDF."
 	case strings.Contains(err.Error(), "SERVICE_DISABLED"):
-		return "Syllabus uploaded, but automatic category extraction is unavailable because the Gemini API is disabled for the configured key or project."
-	case strings.Contains(strings.ToLower(err.Error()), "model"), strings.Contains(strings.ToLower(err.Error()), "not found"):
-		return "Syllabus uploaded, but the configured Gemini model is unavailable. Update GEMINI_MODEL and retry extraction."
+		return "Syllabus uploaded, but automatic category extraction is unavailable because the Vertex AI API is disabled for the configured project."
+	case strings.Contains(lowerErr, "application default credentials"), strings.Contains(lowerErr, "credentials"):
+		return "Syllabus uploaded, but Vertex AI authentication is missing. Set up Application Default Credentials for the backend and retry."
+	case strings.Contains(lowerErr, "project"):
+		return "Syllabus uploaded, but Vertex AI project configuration is missing or invalid. Set VERTEX_AI_PROJECT or GOOGLE_CLOUD_PROJECT and retry."
+	case strings.Contains(lowerErr, "location"), strings.Contains(lowerErr, "region"):
+		return "Syllabus uploaded, but Vertex AI location configuration is missing or invalid. Set VERTEX_AI_LOCATION or GOOGLE_CLOUD_LOCATION and retry."
+	case strings.Contains(lowerErr, "model"), strings.Contains(lowerErr, "not found"):
+		return "Syllabus uploaded, but the configured Vertex AI model is unavailable. Update VERTEX_AI_MODEL and retry extraction."
 	default:
-		return "Syllabus uploaded, but automatic category extraction failed. You can still download the PDF and retry after the AI configuration is fixed."
+		return "Syllabus uploaded, but automatic category extraction failed. You can still download the PDF and retry after the Vertex AI configuration is fixed."
 	}
 }

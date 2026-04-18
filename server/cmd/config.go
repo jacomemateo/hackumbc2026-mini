@@ -13,8 +13,10 @@ type Config struct {
 	Port              string
 	LogLevel          string
 	SyllabusUploadDir string
-	GeminiAPIKey      string
-	GeminiModel       string
+	VertexAIAPIKey    string
+	VertexAIProject   string
+	VertexAILocation  string
+	VertexAIModel     string
 }
 
 func Load() (*Config, error) {
@@ -65,8 +67,10 @@ func Load() (*Config, error) {
 	}
 
 	cfg.SyllabusUploadDir = GetEnvOrDefault("SYLLABUS_UPLOAD_DIR", "./uploads/syllabi")
-	cfg.GeminiAPIKey = GetEnvOrDefaultMany([]string{"GEMINI_API_KEY", "key"}, "")
-	cfg.GeminiModel = GetEnvOrDefault("GEMINI_MODEL", "gemini-1.5-pro")
+	cfg.VertexAIAPIKey = GetEnvOrDefaultMany([]string{"VERTEX_AI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "key"}, "")
+	cfg.VertexAIProject = GetEnvOrDefaultMany([]string{"VERTEX_AI_PROJECT", "GOOGLE_CLOUD_PROJECT"}, "")
+	cfg.VertexAILocation = GetEnvOrDefaultMany([]string{"VERTEX_AI_LOCATION", "GOOGLE_CLOUD_LOCATION", "GOOGLE_CLOUD_REGION"}, "us-central1")
+	cfg.VertexAIModel = GetEnvOrDefaultMany([]string{"VERTEX_AI_MODEL", "GEMINI_MODEL"}, "gemini-2.5-pro")
 
 	return cfg, nil
 }
