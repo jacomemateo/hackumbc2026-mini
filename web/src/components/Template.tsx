@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Box,
   Drawer,
@@ -7,9 +7,10 @@ import {
   ListItemIcon,
   ListItemText,
   Typography,
-  Paper,
   Button,
+  CircularProgress,
 } from "@mui/material";
+import { fetchCourses, type Course } from "@/services/api";
 
 interface NavItem {
   id: string;
@@ -18,48 +19,56 @@ interface NavItem {
   path: string;
 }
 
+const STATIC_PAGES: NavItem[] = [
+  {
+    id: "settings",
+    label: "Settings",
+    icon: "⚙️",
+    path: "settings",
+  },
+];
+
+const courseToNavItem = (course: Course): NavItem => ({
+  id: course.id,
+  label: course.course_name,
+  icon: "📚",
+  path: `course-${course.course_id}`,
+});
+
 const Template = () => {
-  const [activePage, setActivePage] = useState("home");
+  const [activePage, setActivePage] = useState<string | null>(null);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(true);
+  const [courseError, setCourseError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const pages: NavItem[] = [
-    // {
-    //   id: "home",
-    //   label: "Home",
-    //   icon: "🏠",
-    //   path: "",
-    // },
-    {
-      id: "course-cs101",
-      label: "CS 101",
-      icon: "📚",
-      path: "course-cs101",
-    },
-    {
-      id: "course-math201",
-      label: "Math 201",
-      icon: "📊",
-      path: "course-math201",
-    },
-    {
-      id: "course-physics301",
-      label: "Physics 301",
-      icon: "⚗️",
-      path: "course-physics301",
-    },
-    {
-      id: "course-eng150",
-      label: "English 150",
-      icon: "📖",
-      path: "course-eng150",
-    },
-    {
-      id: "settings",
-      label: "Settings",
-      icon: "⚙️",
-      path: "settings",
-    },
-  ];
+  useEffect(() => {
+    const loadCourses = async () => {
+      try {
+        setLoadingCourses(true);
+        setCourseError(null);
+        const data = await fetchCourses();
+        const safe = data ?? [];
+        setCourses(safe);
+        if (safe.length > 0) {
+          setActivePage(safe[0].id);
+        }
+      } catch (err) {
+        console.error("Failed to fetch courses:", err);
+        setCourseError("Failed to load courses.");
+      } finally {
+        setLoadingCourses(false);
+      }
+    };
+
+    loadCourses();
+  }, []);
+
+  const coursePages = (courses ?? []).map(courseToNavItem);
+  const allPages = [...coursePages, ...STATIC_PAGES];
+
+  const isCourse = (pageId: string | null) =>
+    pageId !== null && courses.some((c) => c.id === pageId);
 
   const DRAWER_WIDTH = 250;
 
@@ -71,12 +80,11 @@ const Template = () => {
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const files = event.target.files;
-    if (files) {
+    if (files && activePage) {
       Array.from(files).forEach(async (file) => {
         try {
-          const analysis = await handleUpload(activePage, file);
-          console.log("Syllabus analyzed:", analysis);
-          // You can update state with the analysis results here
+          // const analysis = await handleUpload(activePage, file);
+          // console.log("Syllabus analyzed:", analysis);
         } catch (err) {
           console.error("Upload failed:", err);
         }
@@ -120,7 +128,8 @@ const Template = () => {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: "linear-gradient(135deg, rgb(52, 152, 219), rgb(78, 154, 144))",
+              background:
+                "linear-gradient(135deg, rgb(52, 152, 219), rgb(78, 154, 144))",
               borderRadius: "8px",
             }}
           >
@@ -135,7 +144,7 @@ const Template = () => {
               color: "#ecf0f1",
             }}
           >
-            Grade Harvestor
+            Grade Harvester
           </Typography>
         </Box>
 
@@ -144,44 +153,76 @@ const Template = () => {
           sx={{
             display: "flex",
             flexDirection: "column",
-            gap: "8px",
-            padding: "20px 12px",
+            gap: "4px",
+            padding: "16px 12px",
+            flex: 1,
           }}
         >
-          {pages.map((page) => (
-            <ListItemButton
-              key={page.id}
-              selected={activePage === page.id}
-              onClick={() => setActivePage(page.id)}
-              sx={{
-                borderRadius: "8px",
-                color: activePage === page.id ? "#ffffff" : "#bdc3c7",
-                background:
-                  activePage === page.id
-                    ? "linear-gradient( #3498db)"
-                    : "transparent",
-                boxShadow:
-                  activePage === page.id
-                    ? "0 4px 12px rgba(52, 152, 219, 0.3)"
-                    : "none",
-                "&:hover": {
-                  backgroundColor: "rgba(78, 154, 144, 0.2)",
-                },
-                "& .MuiListItemIcon-root": {
-                  color: "inherit",
-                  minWidth: "40px",
-                },
-              }}
+          {/* Course loading state */}
+          {loadingCourses && (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+              <CircularProgress size={20} sx={{ color: "#bdc3c7" }} />
+            </Box>
+          )}
+
+          {/* Course error state */}
+          {courseError && !loadingCourses && (
+            <Typography
+              sx={{ fontSize: "12px", color: "#e74c3c", px: 1, py: 1 }}
             >
-              <ListItemIcon sx={{ fontSize: "18px" }}>{page.icon}</ListItemIcon>
-              <ListItemText
-                primary={page.label}
-                primaryTypographyProps={{
-                  sx: { fontSize: "14px", fontWeight: 500 },
+              {courseError}
+            </Typography>
+          )}
+
+          {/* Empty state */}
+          {!loadingCourses && !courseError && courses.length === 0 && (
+            <Typography
+              sx={{ fontSize: "12px", color: "#7f8c8d", px: 1, py: 1 }}
+            >
+              No courses yet
+            </Typography>
+          )}
+
+          {/* Course + static nav items */}
+          {!loadingCourses &&
+            allPages.map((page) => (
+              <ListItemButton
+                key={page.id}
+                selected={activePage === page.id}
+                onClick={() => setActivePage(page.id)}
+                sx={{
+                  borderRadius: "6px",
+                  padding: "6px 10px",
+                  minHeight: "unset",
+                  color: activePage === page.id ? "#ffffff" : "#bdc3c7",
+                  background:
+                    activePage === page.id
+                      ? "linear-gradient( #3498db)"
+                      : "transparent",
+                  boxShadow:
+                    activePage === page.id
+                      ? "0 4px 12px rgba(52, 152, 219, 0.3)"
+                      : "none",
+                  "&:hover": {
+                    backgroundColor: "rgba(78, 154, 144, 0.2)",
+                  },
+                  "& .MuiListItemIcon-root": {
+                    color: "inherit",
+                    minWidth: "32px",
+                  },
                 }}
-              />
-            </ListItemButton>
-          ))}
+              >
+                <ListItemIcon sx={{ fontSize: "15px" }}>
+                  {page.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={page.label}
+                  primaryTypographyProps={{
+                    sx: { fontSize: "13px", fontWeight: 500, lineHeight: 1.2 },
+                  }}
+                />
+              </ListItemButton>
+            ))}
         </List>
       </Drawer>
 
@@ -195,29 +236,6 @@ const Template = () => {
           overflow: "hidden",
         }}
       >
-        {/* Content Header */}
-        {/* <Paper
-          elevation={0}
-          sx={{
-            padding: "24px",
-            // borderBottom: "1px solid #e0e0e0",
-            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-            background: `linear-gradient(#262B49 )`,
-          }}
-        >
-          <Typography
-            variant="h5"
-            sx={{
-              margin: 0,
-              color: "#e8ecf0",
-              fontSize: "24px",
-              fontWeight: 600,
-            }}
-          >
-            {pages.find((p) => p.id === activePage)?.label}
-          </Typography>
-        </Paper> */}
-
         {/* Content Body */}
         <Box
           sx={{
@@ -230,10 +248,7 @@ const Template = () => {
           }}
         >
           {/* Upload Syllabus Button - Only show for course pages */}
-          {(activePage === "course-cs101" ||
-            activePage === "course-math201" ||
-            activePage === "course-physics301" ||
-            activePage === "course-eng150") && (
+          {isCourse(activePage) && (
             <Button
               variant="contained"
               onClick={handleUploadClick}
