@@ -31,18 +31,20 @@ func (q *Queries) CountGradeRows(ctx context.Context, search interface{}) (int64
 const createGrade = `-- name: CreateGrade :one
 INSERT INTO grades (
     id_course, 
-    grade, 
+    earned,
+    total,
     g_status, 
     posted_date
 ) VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3, $4, $5
 )
-RETURNING id, id_course, grade, g_status, posted_date
+RETURNING id, id_course, earned, total, g_status, posted_date
 `
 
 type CreateGradeParams struct {
 	IDCourse   pgtype.UUID
-	Grade      int32
+	Earned     pgtype.Int4
+	Total      pgtype.Int4
 	GStatus    GradeStatus
 	PostedDate pgtype.Timestamptz
 }
@@ -50,7 +52,8 @@ type CreateGradeParams struct {
 func (q *Queries) CreateGrade(ctx context.Context, arg CreateGradeParams) (Grade, error) {
 	row := q.db.QueryRow(ctx, createGrade,
 		arg.IDCourse,
-		arg.Grade,
+		arg.Earned,
+		arg.Total,
 		arg.GStatus,
 		arg.PostedDate,
 	)
@@ -58,7 +61,8 @@ func (q *Queries) CreateGrade(ctx context.Context, arg CreateGradeParams) (Grade
 	err := row.Scan(
 		&i.ID,
 		&i.IDCourse,
-		&i.Grade,
+		&i.Earned,
+		&i.Total,
 		&i.GStatus,
 		&i.PostedDate,
 	)
@@ -78,7 +82,8 @@ func (q *Queries) DeleteGrade(ctx context.Context, id pgtype.UUID) error {
 const getGrades = `-- name: GetGrades :many
 SELECT
     g.id,
-    g.grade,
+    g.earned,
+    g.total,
     g.g_status,
     g.posted_date,
     c.course_name,
@@ -91,16 +96,16 @@ WHERE $1 = ''
    OR c.course_id ILIKE '%' || $1 || '%'
    OR c.professor_name ILIKE '%' || $1 || '%'
 ORDER BY
+    -- Sort by grade value (Ratio calculation)
+    CASE WHEN $2 = 'grade' AND $3 = 'asc' THEN (CAST(g.earned AS FLOAT) / NULLIF(g.total, 0)) END ASC NULLS FIRST,
+    CASE WHEN $2 = 'grade' AND $3 = 'desc' THEN (CAST(g.earned AS FLOAT) / NULLIF(g.total, 0)) END DESC NULLS FIRST,
     -- Sort by date
     CASE WHEN $2 = 'date' AND $3 = 'asc' THEN g.posted_date END ASC,
     CASE WHEN $2 = 'date' AND $3 = 'desc' THEN g.posted_date END DESC,
-    -- Sort by grade value
-    CASE WHEN $2 = 'grade' AND $3 = 'asc' THEN g.grade END ASC,
-    CASE WHEN $2 = 'grade' AND $3 = 'desc' THEN g.grade END DESC,
     -- Sort by course name
     CASE WHEN $2 = 'course' AND $3 = 'asc' THEN LOWER(c.course_name) END ASC,
     CASE WHEN $2 = 'course' AND $3 = 'desc' THEN LOWER(c.course_name) END DESC,
-    -- Default fallback sorting
+    -- Default fallback
     g.posted_date DESC,
     g.id ASC
 LIMIT $5
@@ -117,7 +122,8 @@ type GetGradesParams struct {
 
 type GetGradesRow struct {
 	ID            pgtype.UUID
-	Grade         int32
+	Earned        pgtype.Int4
+	Total         pgtype.Int4
 	GStatus       GradeStatus
 	PostedDate    pgtype.Timestamptz
 	CourseName    string
@@ -142,7 +148,8 @@ func (q *Queries) GetGrades(ctx context.Context, arg GetGradesParams) ([]GetGrad
 		var i GetGradesRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.Grade,
+			&i.Earned,
+			&i.Total,
 			&i.GStatus,
 			&i.PostedDate,
 			&i.CourseName,
@@ -162,15 +169,17 @@ func (q *Queries) GetGrades(ctx context.Context, arg GetGradesParams) ([]GetGrad
 const updateGrade = `-- name: UpdateGrade :one
 UPDATE grades
 SET
-    grade = COALESCE($1, grade),
-    g_status = COALESCE($2, g_status),
-    posted_date = COALESCE($3, posted_date)
-WHERE id = $4
-RETURNING id, id_course, grade, g_status, posted_date
+    earned = COALESCE($1, earned),
+    total = COALESCE($2, total),
+    g_status = COALESCE($3, g_status),
+    posted_date = COALESCE($4, posted_date)
+WHERE id = $5
+RETURNING id, id_course, earned, total, g_status, posted_date
 `
 
 type UpdateGradeParams struct {
-	Grade      pgtype.Int4
+	Earned     pgtype.Int4
+	Total      pgtype.Int4
 	GStatus    NullGradeStatus
 	PostedDate pgtype.Timestamptz
 	ID         pgtype.UUID
@@ -178,7 +187,8 @@ type UpdateGradeParams struct {
 
 func (q *Queries) UpdateGrade(ctx context.Context, arg UpdateGradeParams) (Grade, error) {
 	row := q.db.QueryRow(ctx, updateGrade,
-		arg.Grade,
+		arg.Earned,
+		arg.Total,
 		arg.GStatus,
 		arg.PostedDate,
 		arg.ID,
@@ -187,7 +197,8 @@ func (q *Queries) UpdateGrade(ctx context.Context, arg UpdateGradeParams) (Grade
 	err := row.Scan(
 		&i.ID,
 		&i.IDCourse,
-		&i.Grade,
+		&i.Earned,
+		&i.Total,
 		&i.GStatus,
 		&i.PostedDate,
 	)
