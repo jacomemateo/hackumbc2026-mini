@@ -30,14 +30,14 @@ func convertUUIDStringToPgtype(value string) (pgtype.UUID, error) {
 	return uuid, nil
 }
 
-func intPtrToPgtypeInt4(value *int) pgtype.Int4 {
+func floatPtrToPgtypeFloat8(value *float64) pgtype.Float8 {
 	if value == nil {
-		return pgtype.Int4{Valid: false}
+		return pgtype.Float8{Valid: false}
 	}
 
-	return pgtype.Int4{
-		Int32: int32(*value),
-		Valid: true,
+	return pgtype.Float8{
+		Float64: *value,
+		Valid:   true,
 	}
 }
 
