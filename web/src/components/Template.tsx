@@ -23,12 +23,12 @@ const Template = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const pages: NavItem[] = [
-    {
-      id: "home",
-      label: "Home",
-      icon: "🏠",
-      path: "",
-    },
+    // {
+    //   id: "home",
+    //   label: "Home",
+    //   icon: "🏠",
+    //   path: "",
+    // },
     {
       id: "course-cs101",
       label: "CS 101",
@@ -113,7 +113,7 @@ const Template = () => {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: "linear-gradient(135deg, #3498db, #4E9A90)",
+              background: "linear-gradient(135deg, rgb(52, 152, 219), rgb(78, 154, 144))",
               borderRadius: "8px",
             }}
           >
@@ -128,7 +128,7 @@ const Template = () => {
               color: "#ecf0f1",
             }}
           >
-            Academic Pilot
+            Grade Harvestor
           </Typography>
         </Box>
 
@@ -189,7 +189,7 @@ const Template = () => {
         }}
       >
         {/* Content Header */}
-        <Paper
+        {/* <Paper
           elevation={0}
           sx={{
             padding: "24px",
@@ -209,7 +209,7 @@ const Template = () => {
           >
             {pages.find((p) => p.id === activePage)?.label}
           </Typography>
-        </Paper>
+        </Paper> */}
 
         {/* Content Body */}
         <Box
