@@ -67,12 +67,19 @@ const Template = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = event.target.files;
     if (files) {
-      Array.from(files).forEach((file) => {
-        console.log("File uploaded:", file.name);
-        // Handle file upload here
+      Array.from(files).forEach(async (file) => {
+        try {
+          const analysis = await handleUpload(activePage, file);
+          console.log("Syllabus analyzed:", analysis);
+          // You can update state with the analysis results here
+        } catch (err) {
+          console.error("Upload failed:", err);
+        }
       });
     }
   };
