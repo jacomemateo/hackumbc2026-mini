@@ -55,8 +55,8 @@ func (s *GradeService) GetGrades(ctx context.Context, query ListQuery) ([]dto.Gr
 				ID:             convertPgtypeUUIDToString(row.ID),
 				CourseUUID:     convertPgtypeUUIDToString(row.IDCourse),
 				AssignmentName: row.AssignmentName,
-				Earned:         intFromPgtypeInt4(row.Earned),
-				Total:          intFromPgtypeInt4(row.Total),
+				Earned:         floatFromPgtypeFloat8(row.Earned),
+				Total:          floatFromPgtypeFloat8(row.Total),
 				Status:         string(row.GStatus),
 				PostedDate:     row.PostedDate.Time,
 			})
@@ -92,8 +92,8 @@ func (s *GradeService) CreateGrade(ctx context.Context, req dto.CreateGradeReque
 	grade, err := s.database.Queries.CreateGrade(ctx, repository.CreateGradeParams{
 		IDCourse:       courseUUID,
 		AssignmentName: req.AssignmentName,
-		Earned:         intPtrToPgtypeInt4(req.Earned),
-		Total:          intPtrToPgtypeInt4(req.Total),
+		Earned:         floatPtrToPgtypeFloat8(req.Earned),
+		Total:          floatPtrToPgtypeFloat8(req.Total),
 		GStatus:        status,
 		PostedDate:     timeToPgtypeTimestamptz(req.PostedDate),
 	})
@@ -105,8 +105,8 @@ func (s *GradeService) CreateGrade(ctx context.Context, req dto.CreateGradeReque
 		ID:             convertPgtypeUUIDToString(grade.ID),
 		CourseUUID:     convertPgtypeUUIDToString(grade.IDCourse),
 		AssignmentName: grade.AssignmentName,
-		Earned:         intFromPgtypeInt4(grade.Earned),
-		Total:          intFromPgtypeInt4(grade.Total),
+		Earned:         floatFromPgtypeFloat8(grade.Earned),
+		Total:          floatFromPgtypeFloat8(grade.Total),
 		Status:         string(grade.GStatus),
 		PostedDate:     grade.PostedDate.Time,
 	}, nil
@@ -125,8 +125,8 @@ func (s *GradeService) UpdateGrade(ctx context.Context, gradeID string, req dto.
 
 	grade, err := s.database.Queries.UpdateGrade(ctx, repository.UpdateGradeParams{
 		AssignmentName: stringPtrToPgtypeText(req.AssignmentName),
-		Earned:         intPtrToPgtypeInt4(req.Earned),
-		Total:          intPtrToPgtypeInt4(req.Total),
+		Earned:         floatPtrToPgtypeFloat8(req.Earned),
+		Total:          floatPtrToPgtypeFloat8(req.Total),
 		GStatus:        status,
 		PostedDate:     timePtrToPgtypeTimestamptz(req.PostedDate),
 		ID:             gradeUUID,
@@ -139,8 +139,8 @@ func (s *GradeService) UpdateGrade(ctx context.Context, gradeID string, req dto.
 		ID:             convertPgtypeUUIDToString(grade.ID),
 		CourseUUID:     convertPgtypeUUIDToString(grade.IDCourse),
 		AssignmentName: grade.AssignmentName,
-		Earned:         intFromPgtypeInt4(grade.Earned),
-		Total:          intFromPgtypeInt4(grade.Total),
+		Earned:         floatFromPgtypeFloat8(grade.Earned),
+		Total:          floatFromPgtypeFloat8(grade.Total),
 		Status:         string(grade.GStatus),
 		PostedDate:     grade.PostedDate.Time,
 	}, nil
@@ -155,11 +155,11 @@ func (s *GradeService) DeleteGrade(ctx context.Context, gradeID string) error {
 	return s.database.Queries.DeleteGrade(ctx, gradeUUID)
 }
 
-func intFromPgtypeInt4(value pgtype.Int4) *int {
+func floatFromPgtypeFloat8(value pgtype.Float8) *float64 {
 	if !value.Valid {
 		return nil
 	}
 
-	intValue := int(value.Int32)
-	return &intValue
+	floatValue := value.Float64
+	return &floatValue
 }

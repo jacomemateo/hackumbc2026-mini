@@ -148,7 +148,7 @@ func (h *GradeHandler) GetGrades(c *echo.Context) error {
 	return c.JSON(http.StatusOK, grades)
 }
 
-func validateGradePoints(earned *int, total *int) error {
+func validateGradePoints(earned *float64, total *float64) error {
 	if (earned == nil) != (total == nil) {
 		return fmt.Errorf("earned and total must either both be provided or both be omitted")
 	}
