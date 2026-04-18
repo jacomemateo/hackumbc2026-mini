@@ -53,6 +53,13 @@ func (ns NullGradeStatus) Value() (driver.Value, error) {
 	return string(ns.GradeStatus), nil
 }
 
+type Category struct {
+	ID           pgtype.UUID
+	IDCourse     pgtype.UUID
+	CategoryName string
+	Weight       float64
+}
+
 type Course struct {
 	ID            pgtype.UUID
 	CourseName    string
@@ -63,6 +70,7 @@ type Course struct {
 type Grade struct {
 	ID             pgtype.UUID
 	IDCourse       pgtype.UUID
+	CategoryID     pgtype.UUID
 	AssignmentName string
 	Earned         pgtype.Float8
 	Total          pgtype.Float8

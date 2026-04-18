@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -50,6 +51,41 @@ func stringPtrToPgtypeText(value *string) pgtype.Text {
 		String: *value,
 		Valid:  true,
 	}
+}
+
+func nullableUUIDStringToPgtype(value *string) (pgtype.UUID, error) {
+	if value == nil {
+		return pgtype.UUID{Valid: false}, nil
+	}
+
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return pgtype.UUID{}, fmt.Errorf("uuid cannot be empty")
+	}
+
+	return convertUUIDStringToPgtype(trimmed)
+}
+
+func uuidPtrFromPgtypeUUID(value pgtype.UUID) *string {
+	if !value.Valid {
+		return nil
+	}
+
+	uuid := convertPgtypeUUIDToString(value)
+	return &uuid
+}
+
+func stringPtr(value string) *string {
+	return &value
+}
+
+func stringPtrFromPgtypeText(value pgtype.Text) *string {
+	if !value.Valid {
+		return nil
+	}
+
+	text := value.String
+	return &text
 }
 
 func timeToPgtypeTimestamptz(value time.Time) pgtype.Timestamptz {

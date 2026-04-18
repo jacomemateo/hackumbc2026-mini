@@ -66,12 +66,16 @@ func NewRouter(database *service.Database, config *config.Config) (*Router, erro
 	}
 
 	courseService := service.NewCourseService(database)
+	categoryService := service.NewCategoryService(database)
+	geminiService := service.NewGeminiService(config.GeminiAPIKey, config.GeminiModel)
+	reconcilerService := service.NewReconcilerService(database, geminiService)
 	gradeService := service.NewGradeService(database)
-	harvestService := service.NewHarvestService(database)
-	syllabusService := service.NewSyllabusService(database, config.SyllabusUploadDir)
+	harvestService := service.NewHarvestService(database, reconcilerService)
+	syllabusService := service.NewSyllabusService(database, config.SyllabusUploadDir, geminiService, reconcilerService)
 
 	r.handlers = []handlers.Handler{
 		handlers.NewCourseHandler(courseService),
+		handlers.NewCategoryHandler(categoryService),
 		handlers.NewGradeHandler(gradeService),
 		handlers.NewHarvestHandler(harvestService),
 		handlers.NewSyllabusHandler(syllabusService),

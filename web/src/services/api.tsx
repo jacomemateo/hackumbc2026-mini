@@ -18,11 +18,20 @@ export type Course = {
 export type Grade = {
     id: string;
     course_uuid: string;
+    category_id: string | null;
+    category_name: string | null;
     assignment_name: string;
     earned: number | null;
     total: number | null;
     status: GradeStatus;
     posted_date: string;
+};
+
+export type Category = {
+    id: string;
+    course_uuid: string;
+    name: string;
+    weight: number;
 };
 
 export type CreateCoursePayload = {
@@ -33,6 +42,7 @@ export type CreateCoursePayload = {
 
 export type CreateGradePayload = {
     course_uuid: string;
+    category_id?: string;
     assignment_name: string;
     earned?: number;
     total?: number;
@@ -42,6 +52,7 @@ export type CreateGradePayload = {
 
 export type UpdateGradePayload = {
     assignment_name?: string;
+    category_id?: string | null;
     earned?: number;
     total?: number;
     status?: GradeStatus;
@@ -109,6 +120,17 @@ export const createCourse = async (payload: CreateCoursePayload): Promise<Course
         return await response.json();
     } catch (error) {
         console.error('Error creating course:', error);
+        throw error;
+    }
+};
+
+export const fetchCourseCategories = async (courseID: string): Promise<Category[]> => {
+    try {
+        const response = await apiFetch(`${API_BASE_URL}/api/courses/${courseID}/categories`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error(`Error fetching categories for course ${courseID}:`, error);
         throw error;
     }
 };

@@ -111,6 +111,14 @@ func (h *SyllabusHandler) handleSyllabusError(c *echo.Context, err error) error 
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Uploaded file is empty",
 		})
+	case errors.Is(err, service.ErrNoCategoriesExtracted):
+		return c.JSON(http.StatusUnprocessableEntity, map[string]string{
+			"error": "No grading categories were found in the syllabus",
+		})
+	case errors.Is(err, service.ErrGeminiUnavailable):
+		return c.JSON(http.StatusServiceUnavailable, map[string]string{
+			"error": "Gemini is not configured for syllabus parsing",
+		})
 	default:
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to process syllabus",

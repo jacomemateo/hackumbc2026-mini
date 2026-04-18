@@ -82,10 +82,6 @@ const Template = () => {
 
   useEffect(() => {
     if (!activeCourse) {
-      setCurrentSyllabus(null);
-      setSyllabusError(null);
-      setSyllabusNotice(null);
-      setLoadingSyllabus(false);
       return;
     }
 
@@ -96,6 +92,7 @@ const Template = () => {
         setLoadingSyllabus(true);
         setSyllabusError(null);
         setSyllabusNotice(null);
+        setCurrentSyllabus(null);
         const syllabus = await getSyllabusMetadata(activeCourse.id);
         if (!cancelled) {
           setCurrentSyllabus(syllabus);
@@ -126,6 +123,10 @@ const Template = () => {
   }, [activeCourse]);
 
   const DRAWER_WIDTH = 250;
+  const visibleSyllabus = activeCourse ? currentSyllabus : null;
+  const visibleSyllabusError = activeCourse ? syllabusError : null;
+  const visibleSyllabusNotice = activeCourse ? syllabusNotice : null;
+  const visibleLoadingSyllabus = activeCourse ? loadingSyllabus : false;
 
   const handleUploadClick = () => {
     setSyllabusNotice(null);
@@ -310,32 +311,32 @@ const Template = () => {
                 Syllabus
               </Typography>
 
-              {loadingSyllabus ? (
+              {visibleLoadingSyllabus ? (
                 <Box sx={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <CircularProgress size={20} />
                   <Typography sx={{ color: "#aaa" }}>Loading syllabus...</Typography>
                 </Box>
-              ) : syllabusError ? (
+              ) : visibleSyllabusError ? (
                 <Alert severity="error" sx={{ marginBottom: "12px" }}>
-                  {syllabusError}
+                  {visibleSyllabusError}
                 </Alert>
               ) : null}
 
-              {syllabusNotice && (
+              {visibleSyllabusNotice && (
                 <Alert severity="info" sx={{ marginBottom: "12px" }}>
-                  {syllabusNotice}
+                  {visibleSyllabusNotice}
                 </Alert>
               )}
 
-              {currentSyllabus ? (
+              {visibleSyllabus ? (
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <Box>
                     <Typography sx={{ color: "#ecf0f1", fontWeight: "500" }}>
-                      {currentSyllabus.original_filename}
+                      {visibleSyllabus.original_filename}
                     </Typography>
                     <Typography sx={{ color: "#aaa", fontSize: "0.875rem" }}>
-                      {formatFileSize(currentSyllabus.size_bytes)} • Uploaded{" "}
-                      {new Date(currentSyllabus.uploaded_at).toLocaleDateString()}
+                      {formatFileSize(visibleSyllabus.size_bytes)} • Uploaded{" "}
+                      {new Date(visibleSyllabus.uploaded_at).toLocaleDateString()}
                     </Typography>
                   </Box>
                   <Box sx={{ display: "flex", gap: "8px" }}>

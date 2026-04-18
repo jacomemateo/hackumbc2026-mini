@@ -55,6 +55,41 @@ func (d *Database) Close() {
 
 func ensureCompatibleSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	const ensureSchemaSQL = `
+CREATE TABLE IF NOT EXISTS category (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    id_course UUID NOT NULL REFERENCES courses(id) ON DELETE RESTRICT,
+    category_name TEXT NOT NULL,
+    weight DOUBLE PRECISION NOT NULL,
+    CONSTRAINT unique_category_per_course UNIQUE (id_course, category_name)
+);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'grades'
+          AND column_name = 'category_id'
+    ) THEN
+        ALTER TABLE grades
+        ADD COLUMN category_id UUID;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE table_name = 'grades'
+          AND constraint_name = 'grades_category_id_fkey'
+    ) THEN
+        ALTER TABLE grades
+        ADD CONSTRAINT grades_category_id_fkey
+        FOREIGN KEY (category_id) REFERENCES category(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+
 DO $$
 BEGIN
     IF EXISTS (

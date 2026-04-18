@@ -2,11 +2,15 @@ package service
 
 import (
 	"context"
+	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jacomemateo/hackumbc2026-mini/server/internal/repository"
 	"github.com/jacomemateo/hackumbc2026-mini/server/internal/transport/http/dto"
 )
+
+var ErrCategoryNotFound = errors.New("category not found")
 
 type ListQuery struct {
 	PageOffset int
@@ -54,6 +58,8 @@ func (s *GradeService) GetGrades(ctx context.Context, query ListQuery) ([]dto.Gr
 			grades = append(grades, dto.GradeResponse{
 				ID:             convertPgtypeUUIDToString(row.ID),
 				CourseUUID:     convertPgtypeUUIDToString(row.IDCourse),
+				CategoryID:     uuidPtrFromPgtypeUUID(row.CategoryID),
+				CategoryName:   stringPtrFromPgtypeText(row.CategoryName),
 				AssignmentName: row.AssignmentName,
 				Earned:         floatFromPgtypeFloat8(row.Earned),
 				Total:          floatFromPgtypeFloat8(row.Total),
@@ -89,8 +95,14 @@ func (s *GradeService) CreateGrade(ctx context.Context, req dto.CreateGradeReque
 		return dto.GradeMutationResponse{}, err
 	}
 
+	categoryUUID, categoryName, err := s.resolveCourseCategory(ctx, courseUUID, req.CategoryID)
+	if err != nil {
+		return dto.GradeMutationResponse{}, err
+	}
+
 	grade, err := s.database.Queries.CreateGrade(ctx, repository.CreateGradeParams{
 		IDCourse:       courseUUID,
+		CategoryID:     categoryUUID,
 		AssignmentName: req.AssignmentName,
 		Earned:         floatPtrToPgtypeFloat8(req.Earned),
 		Total:          floatPtrToPgtypeFloat8(req.Total),
@@ -101,19 +113,16 @@ func (s *GradeService) CreateGrade(ctx context.Context, req dto.CreateGradeReque
 		return dto.GradeMutationResponse{}, err
 	}
 
-	return dto.GradeMutationResponse{
-		ID:             convertPgtypeUUIDToString(grade.ID),
-		CourseUUID:     convertPgtypeUUIDToString(grade.IDCourse),
-		AssignmentName: grade.AssignmentName,
-		Earned:         floatFromPgtypeFloat8(grade.Earned),
-		Total:          floatFromPgtypeFloat8(grade.Total),
-		Status:         string(grade.GStatus),
-		PostedDate:     grade.PostedDate.Time,
-	}, nil
+	return s.buildGradeMutationResponse(ctx, grade, categoryName)
 }
 
 func (s *GradeService) UpdateGrade(ctx context.Context, gradeID string, req dto.UpdateGradeRequest) (dto.GradeMutationResponse, error) {
 	gradeUUID, err := convertUUIDStringToPgtype(gradeID)
+	if err != nil {
+		return dto.GradeMutationResponse{}, err
+	}
+
+	currentGrade, err := s.database.Queries.GetGradeByID(ctx, gradeUUID)
 	if err != nil {
 		return dto.GradeMutationResponse{}, err
 	}
@@ -123,27 +132,30 @@ func (s *GradeService) UpdateGrade(ctx context.Context, gradeID string, req dto.
 		return dto.GradeMutationResponse{}, err
 	}
 
+	var categoryUUID pgtype.UUID
+	var categoryName *string
+	if req.CategoryID.Set {
+		categoryUUID, categoryName, err = s.resolveCourseCategory(ctx, currentGrade.IDCourse, req.CategoryID.Value)
+		if err != nil {
+			return dto.GradeMutationResponse{}, err
+		}
+	}
+
 	grade, err := s.database.Queries.UpdateGrade(ctx, repository.UpdateGradeParams{
 		AssignmentName: stringPtrToPgtypeText(req.AssignmentName),
 		Earned:         floatPtrToPgtypeFloat8(req.Earned),
 		Total:          floatPtrToPgtypeFloat8(req.Total),
 		GStatus:        status,
 		PostedDate:     timePtrToPgtypeTimestamptz(req.PostedDate),
+		CategoryID:     categoryUUID,
+		CategoryIDSet:  req.CategoryID.Set,
 		ID:             gradeUUID,
 	})
 	if err != nil {
 		return dto.GradeMutationResponse{}, err
 	}
 
-	return dto.GradeMutationResponse{
-		ID:             convertPgtypeUUIDToString(grade.ID),
-		CourseUUID:     convertPgtypeUUIDToString(grade.IDCourse),
-		AssignmentName: grade.AssignmentName,
-		Earned:         floatFromPgtypeFloat8(grade.Earned),
-		Total:          floatFromPgtypeFloat8(grade.Total),
-		Status:         string(grade.GStatus),
-		PostedDate:     grade.PostedDate.Time,
-	}, nil
+	return s.buildGradeMutationResponse(ctx, grade, categoryName)
 }
 
 func (s *GradeService) DeleteGrade(ctx context.Context, gradeID string) error {
@@ -153,6 +165,56 @@ func (s *GradeService) DeleteGrade(ctx context.Context, gradeID string) error {
 	}
 
 	return s.database.Queries.DeleteGrade(ctx, gradeUUID)
+}
+
+func (s *GradeService) resolveCourseCategory(ctx context.Context, courseUUID pgtype.UUID, categoryID *string) (pgtype.UUID, *string, error) {
+	categoryUUID, err := nullableUUIDStringToPgtype(categoryID)
+	if err != nil {
+		return pgtype.UUID{}, nil, err
+	}
+	if !categoryUUID.Valid {
+		return categoryUUID, nil, nil
+	}
+
+	category, err := s.database.Queries.GetCategoryByCourseAndID(ctx, repository.GetCategoryByCourseAndIDParams{
+		ID:       categoryUUID,
+		IDCourse: courseUUID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return pgtype.UUID{}, nil, ErrCategoryNotFound
+		}
+		return pgtype.UUID{}, nil, err
+	}
+
+	return categoryUUID, stringPtr(category.CategoryName), nil
+}
+
+func (s *GradeService) buildGradeMutationResponse(ctx context.Context, grade repository.Grade, categoryName *string) (dto.GradeMutationResponse, error) {
+	if categoryName == nil && grade.CategoryID.Valid {
+		category, err := s.database.Queries.GetCategoryByCourseAndID(ctx, repository.GetCategoryByCourseAndIDParams{
+			ID:       grade.CategoryID,
+			IDCourse: grade.IDCourse,
+		})
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return dto.GradeMutationResponse{}, err
+		}
+		if err == nil {
+			categoryName = stringPtr(category.CategoryName)
+		}
+	}
+
+	return dto.GradeMutationResponse{
+		ID:             convertPgtypeUUIDToString(grade.ID),
+		CourseUUID:     convertPgtypeUUIDToString(grade.IDCourse),
+		CategoryID:     uuidPtrFromPgtypeUUID(grade.CategoryID),
+		CategoryName:   categoryName,
+		AssignmentName: grade.AssignmentName,
+		Earned:         floatFromPgtypeFloat8(grade.Earned),
+		Total:          floatFromPgtypeFloat8(grade.Total),
+		Status:         string(grade.GStatus),
+		PostedDate:     grade.PostedDate.Time,
+	}, nil
 }
 
 func floatFromPgtypeFloat8(value pgtype.Float8) *float64 {

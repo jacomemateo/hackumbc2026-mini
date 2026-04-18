@@ -33,20 +33,22 @@ func (q *Queries) CountGradeRows(ctx context.Context, arg CountGradeRowsParams) 
 
 const createGrade = `-- name: CreateGrade :one
 INSERT INTO grades (
-    id_course, 
+    id_course,
+    category_id,
     assignment_name,
     earned,
     total,
-    g_status, 
+    g_status,
     posted_date
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3, $4, $5, $6, $7
 )
-RETURNING id, id_course, assignment_name, earned, total, g_status, posted_date
+RETURNING id, id_course, category_id, assignment_name, earned, total, g_status, posted_date
 `
 
 type CreateGradeParams struct {
 	IDCourse       pgtype.UUID
+	CategoryID     pgtype.UUID
 	AssignmentName string
 	Earned         pgtype.Float8
 	Total          pgtype.Float8
@@ -57,6 +59,7 @@ type CreateGradeParams struct {
 func (q *Queries) CreateGrade(ctx context.Context, arg CreateGradeParams) (Grade, error) {
 	row := q.db.QueryRow(ctx, createGrade,
 		arg.IDCourse,
+		arg.CategoryID,
 		arg.AssignmentName,
 		arg.Earned,
 		arg.Total,
@@ -67,6 +70,7 @@ func (q *Queries) CreateGrade(ctx context.Context, arg CreateGradeParams) (Grade
 	err := row.Scan(
 		&i.ID,
 		&i.IDCourse,
+		&i.CategoryID,
 		&i.AssignmentName,
 		&i.Earned,
 		&i.Total,
@@ -96,10 +100,34 @@ func (q *Queries) DeleteGradesByCourse(ctx context.Context, idCourse pgtype.UUID
 	return err
 }
 
+const getGradeByID = `-- name: GetGradeByID :one
+SELECT id, id_course, category_id, assignment_name, earned, total, g_status, posted_date
+FROM grades
+WHERE id = $1
+`
+
+func (q *Queries) GetGradeByID(ctx context.Context, id pgtype.UUID) (Grade, error) {
+	row := q.db.QueryRow(ctx, getGradeByID, id)
+	var i Grade
+	err := row.Scan(
+		&i.ID,
+		&i.IDCourse,
+		&i.CategoryID,
+		&i.AssignmentName,
+		&i.Earned,
+		&i.Total,
+		&i.GStatus,
+		&i.PostedDate,
+	)
+	return i, err
+}
+
 const getGrades = `-- name: GetGrades :many
 SELECT
     g.id,
     g.id_course,
+    g.category_id,
+    cat.category_name,
     g.assignment_name,
     g.earned,
     g.total,
@@ -107,6 +135,7 @@ SELECT
     g.posted_date
 FROM grades g
 JOIN courses c ON g.id_course = c.id
+LEFT JOIN category cat ON g.category_id = cat.id
 WHERE ($1::text = '' OR g.id_course::text = $1::text OR c.course_id = $1::text)
   AND ($2::text = '' OR g.assignment_name ILIKE '%' || $2::text || '%')
 ORDER BY
@@ -135,7 +164,19 @@ type GetGradesParams struct {
 	NumRows    int32
 }
 
-func (q *Queries) GetGrades(ctx context.Context, arg GetGradesParams) ([]Grade, error) {
+type GetGradesRow struct {
+	ID             pgtype.UUID
+	IDCourse       pgtype.UUID
+	CategoryID     pgtype.UUID
+	CategoryName   pgtype.Text
+	AssignmentName string
+	Earned         pgtype.Float8
+	Total          pgtype.Float8
+	GStatus        GradeStatus
+	PostedDate     pgtype.Timestamptz
+}
+
+func (q *Queries) GetGrades(ctx context.Context, arg GetGradesParams) ([]GetGradesRow, error) {
 	rows, err := q.db.Query(ctx, getGrades,
 		arg.CourseID,
 		arg.Search,
@@ -148,17 +189,62 @@ func (q *Queries) GetGrades(ctx context.Context, arg GetGradesParams) ([]Grade, 
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Grade
+	var items []GetGradesRow
 	for rows.Next() {
-		var i Grade
+		var i GetGradesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.IDCourse,
+			&i.CategoryID,
+			&i.CategoryName,
 			&i.AssignmentName,
 			&i.Earned,
 			&i.Total,
 			&i.GStatus,
 			&i.PostedDate,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getGradesForReconciliation = `-- name: GetGradesForReconciliation :many
+SELECT
+    id,
+    id_course,
+    assignment_name,
+    category_id
+FROM grades
+WHERE id_course = $1
+ORDER BY posted_date DESC, id ASC
+`
+
+type GetGradesForReconciliationRow struct {
+	ID             pgtype.UUID
+	IDCourse       pgtype.UUID
+	AssignmentName string
+	CategoryID     pgtype.UUID
+}
+
+func (q *Queries) GetGradesForReconciliation(ctx context.Context, idCourse pgtype.UUID) ([]GetGradesForReconciliationRow, error) {
+	rows, err := q.db.Query(ctx, getGradesForReconciliation, idCourse)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetGradesForReconciliationRow
+	for rows.Next() {
+		var i GetGradesForReconciliationRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.IDCourse,
+			&i.AssignmentName,
+			&i.CategoryID,
 		); err != nil {
 			return nil, err
 		}
@@ -177,9 +263,13 @@ SET
     earned = COALESCE($2, earned),
     total = COALESCE($3, total),
     g_status = COALESCE($4, g_status),
-    posted_date = COALESCE($5, posted_date)
-WHERE id = $6
-RETURNING id, id_course, assignment_name, earned, total, g_status, posted_date
+    posted_date = COALESCE($5, posted_date),
+    category_id = CASE
+        WHEN $6::boolean THEN $7
+        ELSE category_id
+    END
+WHERE id = $8
+RETURNING id, id_course, category_id, assignment_name, earned, total, g_status, posted_date
 `
 
 type UpdateGradeParams struct {
@@ -188,6 +278,8 @@ type UpdateGradeParams struct {
 	Total          pgtype.Float8
 	GStatus        NullGradeStatus
 	PostedDate     pgtype.Timestamptz
+	CategoryIDSet  bool
+	CategoryID     pgtype.UUID
 	ID             pgtype.UUID
 }
 
@@ -198,12 +290,15 @@ func (q *Queries) UpdateGrade(ctx context.Context, arg UpdateGradeParams) (Grade
 		arg.Total,
 		arg.GStatus,
 		arg.PostedDate,
+		arg.CategoryIDSet,
+		arg.CategoryID,
 		arg.ID,
 	)
 	var i Grade
 	err := row.Scan(
 		&i.ID,
 		&i.IDCourse,
+		&i.CategoryID,
 		&i.AssignmentName,
 		&i.Earned,
 		&i.Total,
@@ -211,4 +306,20 @@ func (q *Queries) UpdateGrade(ctx context.Context, arg UpdateGradeParams) (Grade
 		&i.PostedDate,
 	)
 	return i, err
+}
+
+const updateGradeCategory = `-- name: UpdateGradeCategory :exec
+UPDATE grades
+SET category_id = $1
+WHERE id = $2
+`
+
+type UpdateGradeCategoryParams struct {
+	CategoryID pgtype.UUID
+	ID         pgtype.UUID
+}
+
+func (q *Queries) UpdateGradeCategory(ctx context.Context, arg UpdateGradeCategoryParams) error {
+	_, err := q.db.Exec(ctx, updateGradeCategory, arg.CategoryID, arg.ID)
+	return err
 }

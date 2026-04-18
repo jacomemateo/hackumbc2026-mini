@@ -13,6 +13,8 @@ type Config struct {
 	Port              string
 	LogLevel          string
 	SyllabusUploadDir string
+	GeminiAPIKey      string
+	GeminiModel       string
 }
 
 func Load() (*Config, error) {
@@ -63,6 +65,8 @@ func Load() (*Config, error) {
 	}
 
 	cfg.SyllabusUploadDir = GetEnvOrDefault("SYLLABUS_UPLOAD_DIR", "./uploads/syllabi")
+	cfg.GeminiAPIKey = GetEnvOrDefaultMany([]string{"GEMINI_API_KEY", "key"}, "")
+	cfg.GeminiModel = GetEnvOrDefault("GEMINI_MODEL", "gemini-1.5-pro")
 
 	return cfg, nil
 }
@@ -77,6 +81,15 @@ func GetEnv(key string) (string, error) {
 func GetEnvOrDefault(key string, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+func GetEnvOrDefaultMany(keys []string, defaultValue string) string {
+	for _, key := range keys {
+		if value := os.Getenv(key); value != "" {
+			return value
+		}
 	}
 	return defaultValue
 }

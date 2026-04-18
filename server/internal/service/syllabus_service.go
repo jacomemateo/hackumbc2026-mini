@@ -31,8 +31,10 @@ var (
 )
 
 type SyllabusService struct {
-	database  *Database
-	uploadDir string
+	database   *Database
+	uploadDir  string
+	gemini     *GeminiService
+	reconciler *ReconcilerService
 }
 
 type syllabusMetadata struct {
@@ -43,10 +45,12 @@ type syllabusMetadata struct {
 	UploadedAt       time.Time `json:"uploaded_at"`
 }
 
-func NewSyllabusService(database *Database, uploadDir string) *SyllabusService {
+func NewSyllabusService(database *Database, uploadDir string, gemini *GeminiService, reconciler *ReconcilerService) *SyllabusService {
 	return &SyllabusService{
-		database:  database,
-		uploadDir: uploadDir,
+		database:   database,
+		uploadDir:  uploadDir,
+		gemini:     gemini,
+		reconciler: reconciler,
 	}
 }
 
@@ -56,7 +60,8 @@ func (s *SyllabusService) UploadSyllabus(ctx context.Context, courseID string, o
 		return dto.SyllabusFileResponse{}, err
 	}
 
-	if _, err := s.database.Queries.GetCourseByID(ctx, courseUUID); err != nil {
+	course, err := s.database.Queries.GetCourseByID(ctx, courseUUID)
+	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return dto.SyllabusFileResponse{}, ErrCourseNotFound
 		}
@@ -85,6 +90,11 @@ func (s *SyllabusService) UploadSyllabus(ctx context.Context, courseID string, o
 		return dto.SyllabusFileResponse{}, ErrInvalidSyllabus
 	}
 
+	categories, err := s.gemini.ExtractCategoriesFromPDF(ctx, originalFilename, fileBytes)
+	if err != nil {
+		return dto.SyllabusFileResponse{}, err
+	}
+
 	metadata := syllabusMetadata{
 		CourseID:         courseID,
 		OriginalFilename: originalFilename,
@@ -110,6 +120,32 @@ func (s *SyllabusService) UploadSyllabus(ctx context.Context, courseID string, o
 	if err := os.WriteFile(filepath.Join(courseDir, metadataFilename), metadataBytes, 0o644); err != nil {
 		return dto.SyllabusFileResponse{}, err
 	}
+
+	tx, err := s.database.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return dto.SyllabusFileResponse{}, fmt.Errorf("begin syllabus transaction: %w", err)
+	}
+
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	queries := s.database.Queries.WithTx(tx)
+	if err := replaceCourseCategories(ctx, queries, course.ID, categories); err != nil {
+		return dto.SyllabusFileResponse{}, fmt.Errorf("replace syllabus categories: %w", err)
+	}
+
+	if err := s.reconciler.reconcileCourseInQueries(ctx, queries, course); err != nil {
+		return dto.SyllabusFileResponse{}, fmt.Errorf("reconcile syllabus categories: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return dto.SyllabusFileResponse{}, fmt.Errorf("commit syllabus transaction: %w", err)
+	}
+	committed = true
 
 	return dto.SyllabusFileResponse{
 		CourseID:         metadata.CourseID,

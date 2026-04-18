@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -63,6 +64,11 @@ func (h *GradeHandler) CreateGrade(c *echo.Context) error {
 
 	grade, err := h.gradeService.CreateGrade(c.Request().Context(), req)
 	if err != nil {
+		if errors.Is(err, service.ErrCategoryNotFound) {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "Category not found for this course",
+			})
+		}
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to create grade",
 		})
@@ -84,7 +90,13 @@ func (h *GradeHandler) UpdateGrade(c *echo.Context) error {
 		return err
 	}
 
-	if req.AssignmentName == nil && req.Earned == nil && req.Total == nil && req.Status == nil && req.PostedDate == nil {
+	if req.CategoryID.Set && req.CategoryID.Value != nil && !isValidUUID(strings.TrimSpace(*req.CategoryID.Value)) {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid category_id field",
+		})
+	}
+
+	if req.AssignmentName == nil && !req.CategoryID.Set && req.Earned == nil && req.Total == nil && req.Status == nil && req.PostedDate == nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "At least one field must be provided",
 		})
@@ -98,6 +110,11 @@ func (h *GradeHandler) UpdateGrade(c *echo.Context) error {
 
 	grade, err := h.gradeService.UpdateGrade(c.Request().Context(), gradeID, req)
 	if err != nil {
+		if errors.Is(err, service.ErrCategoryNotFound) {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "Category not found for this course",
+			})
+		}
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to update grade",
 		})

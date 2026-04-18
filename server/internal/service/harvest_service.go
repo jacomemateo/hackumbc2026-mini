@@ -21,12 +21,14 @@ var harvestDateLayouts = []string{
 }
 
 type HarvestService struct {
-	database *Database
+	database   *Database
+	reconciler *ReconcilerService
 }
 
-func NewHarvestService(database *Database) *HarvestService {
+func NewHarvestService(database *Database, reconciler *ReconcilerService) *HarvestService {
 	return &HarvestService{
-		database: database,
+		database:   database,
+		reconciler: reconciler,
 	}
 }
 
@@ -96,6 +98,10 @@ func (s *HarvestService) importCourse(ctx context.Context, course dto.HarvestCou
 		if err := insertHarvestGrade(ctx, queries, dbCourse.ID, grade); err != nil {
 			return 0, err
 		}
+	}
+
+	if err := s.reconciler.reconcileCourseInQueries(ctx, queries, dbCourse); err != nil {
+		return 0, fmt.Errorf("reconcile imported grades: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
