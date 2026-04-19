@@ -20,7 +20,9 @@ import {
   type UploadedSyllabus,
 } from "@/services/api";
 import CourseGradesOverview from "./CourseGradesOverview";
-import { GradesTable } from "./DisplayGrades";
+import { CourseGradeBadge } from "./CourseGradeBadge";
+import { GradesGrid } from "./DisplayGrades";
+import { useCourseGrades } from "./useCourseGrades";
 
 interface NavItem {
   id: string;
@@ -79,6 +81,7 @@ const Template = () => {
     pageId !== null && courses.some((c) => c.id === pageId);
 
   const activeCourse = courses.find((course) => course.id === activePage) ?? null;
+  const activeCourseGrades = useCourseGrades(activeCourse?.id);
 
   useEffect(() => {
     if (!activeCourse) {
@@ -391,11 +394,26 @@ const Template = () => {
                 padding: "16px",
               }}
             >
-              <Typography variant="h6" sx={{ color: "#ecf0f1", marginBottom: "12px" }}>
-                Grades
-              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: "16px",
+                  flexWrap: "wrap",
+                  marginBottom: "12px",
+                }}
+              >
+                <Typography variant="h6" sx={{ color: "#ecf0f1", paddingTop: "4px" }}>
+                  Grades
+                </Typography>
+                <CourseGradeBadge
+                  summary={activeCourseGrades.gradeSummary}
+                  loading={activeCourseGrades.loading}
+                />
+              </Box>
               <Box sx={{ width: "100%" }}>
-                <GradesTable courseId={activeCourse.id} />
+                <GradesGrid courseId={activeCourse.id} {...activeCourseGrades} />
               </Box>
             </Box>
           )}
