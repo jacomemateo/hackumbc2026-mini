@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import {
   Box,
+  Paper,
+  Stack,
+  Divider,
   Drawer,
   List,
   ListItemButton,
@@ -16,7 +19,7 @@ import {
   getSyllabusDownloadUrl,
   getSyllabusMetadata,
   uploadSyllabus,
-  APIError, // Add this
+  APIError,
   type Course,
   type UploadedSyllabus,
 } from "@/services/api";
@@ -190,85 +193,63 @@ const Template = () => {
   };
 
   return (
-    <Box sx={{ display: "flex", height: "100vh", width: "100%" }}>
-      {/* Sidebar */}
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: DRAWER_WIDTH,
-          flexShrink: 0,
-          "& .MuiDrawer-paper": {
-            width: DRAWER_WIDTH,
-            background: `linear-gradient(180deg, #262B49 0%, #181822 100%)`,
-            color: "#ecf0f1",
-            boxSizing: "border-box",
-            display: "flex",
-            flexDirection: "column",
-          },
-        }}
-      >
-        {/* Header */}
-        <Box sx={{ padding: "20px", borderBottom: "1px solid #444" }}>
-          <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-            🪏 Grade Harvester
-          </Typography>
-        </Box>
-
-        {/* Navigation */}
-        <List sx={{ flex: 1, overflowY: "auto" }}>
-          {loadingCourses ? (
-            <Box sx={{ display: "flex", justifyContent: "center", padding: "20px" }}>
-              <CircularProgress size={24} />
-            </Box>
-          ) : courseError ? (
-            <Typography sx={{ padding: "20px", color: "#f44336", fontSize: "0.875rem" }}>
-              {courseError}
-            </Typography>
-          ) : allPages.length === 0 ? (
-            <Typography sx={{ padding: "20px", color: "#aaa", fontSize: "0.875rem" }}>
-              No courses available
-            </Typography>
-          ) : (
-            allPages.map((page) => (
-              <ListItemButton
-                key={page.id}
-                selected={activePage === page.id}
-                onClick={() => setActivePage(page.id)}
-                sx={{
-                  color: activePage === page.id ? "#fff" : "#aaa",
-                  backgroundColor: activePage === page.id ? "rgba(255, 255, 255, 0.1)" : "transparent",
-                  "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.05)" },
-                }}
-              >
-                <ListItemIcon sx={{ color: "inherit", minWidth: "40px" }}>
-                  {page.icon}
-                </ListItemIcon>
-                <ListItemText primary={page.label} />
-              </ListItemButton>
-            ))
-          )}
-        </List>
-      </Drawer>
-
-      {/* Main Content */}
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          background: `linear-gradient(180deg, #262B49 0%, #181822 100%)`,
-          overflow: "hidden",
-        }}
-      >
-        {/* Header */}
-        <Box
-          sx={{
-            padding: "20px 24px",
-            // borderBottom: "1px solid #444",
-            color: "#ecf0f1",
+    <Box style={{ display: "flex", height: "100vh", width: "100%" }}>
+      <Box component="nav" style={{ width: DRAWER_WIDTH, flexShrink: 0 }}>
+        <Drawer
+          variant="permanent"
+          open
+          slotProps={{
+            paper: {
+              style: {
+                width: DRAWER_WIDTH,
+                boxSizing: "border-box",
+              },
+            },
           }}
         >
-          <Typography variant="h5" sx={{ fontWeight: "bold" }}>
+          <Box style={{ padding: "20px" }}>
+            <Typography variant="h6">Grade Harvester</Typography>
+          </Box>
+          <Divider />
+
+          <Box style={{ flex: 1, overflow: "auto" }}>
+            <List>
+              {loadingCourses ? (
+                <Box style={{ display: "flex", justifyContent: "center", padding: 20 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : courseError ? (
+                <Box style={{ padding: "20px" }}>
+                  <Typography variant="body2" color="error.main">
+                    {courseError}
+                  </Typography>
+                </Box>
+              ) : allPages.length === 0 ? (
+                <Box style={{ padding: "20px" }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No courses available
+                  </Typography>
+                </Box>
+              ) : (
+                allPages.map((page) => (
+                  <ListItemButton
+                    key={page.id}
+                    selected={activePage === page.id}
+                    onClick={() => setActivePage(page.id)}
+                  >
+                    <ListItemIcon>{page.icon}</ListItemIcon>
+                    <ListItemText primary={page.label} />
+                  </ListItemButton>
+                ))
+              )}
+            </List>
+          </Box>
+        </Drawer>
+      </Box>
+
+      <Box style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <Box component="header" style={{ padding: "20px 24px" }}>
+          <Typography variant="h5">
             {isCourse(activePage) && activeCourse
               ? activeCourse.course_name
               : activePage === ALL_COURSES_PAGE_ID
@@ -276,28 +257,20 @@ const Template = () => {
                 : "Grade Tracker"}
           </Typography>
           {isCourse(activePage) && activeCourse && (
-            <Typography variant="body2" sx={{ color: "#aaa", marginTop: "4px" }}>
+            <Typography variant="body2" color="text.secondary">
               {activeCourse.course_id} • {activeCourse.professor_name}
             </Typography>
           )}
           {activePage === ALL_COURSES_PAGE_ID && (
-            <Typography variant="body2" sx={{ color: "#aaa", marginTop: "4px" }}>
+            <Typography variant="body2" color="text.secondary">
               Browse every course and its assignments in one place.
             </Typography>
           )}
         </Box>
+        <Divider />
 
-        {/* Content Body */}
-        <Box
-          sx={{
-            flex: 1,
-            padding: "24px",
-            overflowY: "auto",
-            display: "flex",
-            flexDirection: "column",
-            gap: "16px",
-          }}
-        >
+        <Box style={{ flex: 1, padding: 24, overflow: "auto" }}>
+          <Stack spacing={2}>
           {activePage === ALL_COURSES_PAGE_ID && (
             <CourseGradesOverview
               courses={courses}
@@ -306,121 +279,88 @@ const Template = () => {
             />
           )}
 
-          {/* Syllabus Section - Only show for course pages */}
           {isCourse(activePage) && activeCourse && (
-            <Box
-              sx={{
-                padding: "16px",
-                backgroundColor: "rgba(255, 255, 255, 0.05)",
-                borderRadius: "8px",
-                border: "1px solid #444",
-              }}
-            >
-              <Typography variant="h6" sx={{ color: "#ecf0f1", marginBottom: "12px" }}>
-                Syllabus
-              </Typography>
+            <Paper variant="outlined">
+              <Stack spacing={2} style={{ padding: 24 }}>
+                <Typography variant="h6">Syllabus</Typography>
 
-              {visibleLoadingSyllabus ? (
-                <Box sx={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <CircularProgress size={20} />
-                  <Typography sx={{ color: "#aaa" }}>Loading syllabus...</Typography>
-                </Box>
-              ) : visibleSyllabusError ? (
-                <Alert severity="error" sx={{ marginBottom: "12px" }}>
-                  {visibleSyllabusError}
-                </Alert>
-              ) : null}
-
-              {visibleSyllabusNotice && (
-                <Alert severity="info" sx={{ marginBottom: "12px" }}>
-                  {visibleSyllabusNotice}
-                </Alert>
-              )}
-
-              {visibleSyllabus ? (
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <Box>
-                    <Typography sx={{ color: "#ecf0f1", fontWeight: "500" }}>
-                      {visibleSyllabus.original_filename}
-                    </Typography>
-                    <Typography sx={{ color: "#aaa", fontSize: "0.875rem" }}>
-                      {formatFileSize(visibleSyllabus.size_bytes)} • Uploaded{" "}
-                      {new Date(visibleSyllabus.uploaded_at).toLocaleDateString()}
-                    </Typography>
+                {visibleLoadingSyllabus ? (
+                  <Box style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <CircularProgress size={20} />
+                    <Typography color="text.secondary">Loading syllabus...</Typography>
                   </Box>
-                  <Box sx={{ display: "flex", gap: "8px" }}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      href={getSyllabusDownloadUrl(activeCourse.id)}
-                      download
-                      sx={{ color: "#ecf0f1", borderColor: "#666" }}
-                    >
-                      Download
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={handleUploadClick}
-                      disabled={uploadingSyllabus}
-                      sx={{ color: "#ecf0f1", borderColor: "#666" }}
-                    >
-                      {uploadingSyllabus ? "Uploading..." : "Replace"}
-                    </Button>
-                  </Box>
-                </Box>
-              ) : (
-                <Button
-                  variant="contained"
-                  onClick={handleUploadClick}
-                  disabled={uploadingSyllabus}
-                  sx={{
-                    backgroundColor: "#4CAF50",
-                    color: "#fff",
-                    "&:hover": { backgroundColor: "#45a049" },
-                  }}
+                ) : visibleSyllabusError ? (
+                  <Alert severity="error">{visibleSyllabusError}</Alert>
+                ) : null}
+
+                {visibleSyllabusNotice && (
+                  <Alert severity="info">{visibleSyllabusNotice}</Alert>
+                )}
+
+                {visibleSyllabus ? (
+                  <Stack
+                    direction={{ xs: "column", md: "row" }}
+                    spacing={2}
+                    style={{ alignItems: "center", justifyContent: "space-between" }}
+                  >
+                    <Box>
+                      <Typography>{visibleSyllabus.original_filename}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {formatFileSize(visibleSyllabus.size_bytes)} • Uploaded{" "}
+                        {new Date(visibleSyllabus.uploaded_at).toLocaleDateString()}
+                      </Typography>
+                    </Box>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        href={getSyllabusDownloadUrl(activeCourse.id)}
+                        download
+                      >
+                        Download
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={handleUploadClick}
+                        disabled={uploadingSyllabus}
+                      >
+                        {uploadingSyllabus ? "Uploading..." : "Replace"}
+                      </Button>
+                    </Stack>
+                  </Stack>
+                ) : (
+                  <Button
+                    variant="contained"
+                    onClick={handleUploadClick}
+                    disabled={uploadingSyllabus}
+                  >
+                    {uploadingSyllabus ? "Uploading..." : "Upload Syllabus"}
+                  </Button>
+                )}
+              </Stack>
+            </Paper>
+          )}
+
+          {isCourse(activePage) && activeCourse && (
+            <Paper variant="outlined">
+              <Stack spacing={2} style={{ padding: 24 }}>
+                <Stack
+                  direction={{ xs: "column", lg: "row" }}
+                  spacing={2}
+                  style={{ alignItems: "flex-start", justifyContent: "space-between" }}
                 >
-                  {uploadingSyllabus ? "Uploading..." : "Upload Syllabus"}
-                </Button>
-              )}
-            </Box>
-          )}
-
-          {/* Grades Table - Only show for course pages */}
-          {isCourse(activePage) && activeCourse && (
-            <Box
-              sx={{
-                backgroundColor: "rgba(255, 255, 255, 0.05)",
-                borderRadius: "8px",
-                border: "1px solid #444",
-                padding: "16px",
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  gap: "16px",
-                  flexWrap: "wrap",
-                  marginBottom: "12px",
-                }}
-              >
-                <Typography variant="h6" sx={{ color: "#ecf0f1", paddingTop: "4px" }}>
-                  Grades
-                </Typography>
-                <CourseGradeBadge
-                  summary={activeCourseGrades.gradeSummary}
-                  loading={activeCourseGrades.loading}
-                />
-              </Box>
-              <Box sx={{ width: "100%" }}>
+                  <Typography variant="h6">Grades</Typography>
+                  <CourseGradeBadge
+                    summary={activeCourseGrades.gradeSummary}
+                    loading={activeCourseGrades.loading}
+                  />
+                </Stack>
                 <GradesGrid courseId={activeCourse.id} {...activeCourseGrades} />
-              </Box>
-            </Box>
+              </Stack>
+            </Paper>
           )}
 
-          {/* Hidden File Input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -428,6 +368,7 @@ const Template = () => {
             style={{ display: "none" }}
             accept=".pdf,application/pdf"
           />
+          </Stack>
         </Box>
       </Box>
     </Box>

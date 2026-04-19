@@ -1,4 +1,4 @@
-import { Alert, Box, CircularProgress, Stack, Typography } from "@mui/material";
+import { Alert, Box, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { type Course } from "@/services/api";
 import { CourseGradeBadge } from "./CourseGradeBadge";
 import { GradesGrid } from "./DisplayGrades";
@@ -17,7 +17,7 @@ const CourseGradesOverview = ({
 }: CourseGradesOverviewProps) => {
   if (loading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", padding: "48px 0" }}>
+      <Box style={{ display: "flex", justifyContent: "center", paddingBlock: 48 }}>
         <CircularProgress />
       </Box>
     );
@@ -48,40 +48,28 @@ const CourseGradeCard = ({ course }: CourseGradeCardProps) => {
   const courseGrades = useCourseGrades(course.id);
 
   return (
-    <Box
-      sx={{
-        borderRadius: "10px",
-        border: "1px solid #444",
-        backgroundColor: "rgba(255, 255, 255, 0.05)",
-        padding: "16px",
-      }}
-    >
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: "16px",
-          flexWrap: "wrap",
-          marginBottom: "16px",
-        }}
-      >
-        <Box sx={{ flex: "1 1 260px" }}>
-          <Typography variant="h6" sx={{ color: "#ecf0f1", marginBottom: "4px" }}>
-            {course.course_name}
-          </Typography>
-          <Typography variant="body2" sx={{ color: "#aaa" }}>
-            {course.course_id} • {course.professor_name}
-          </Typography>
-        </Box>
-        <CourseGradeBadge
-          summary={courseGrades.gradeSummary}
-          loading={courseGrades.loading}
-        />
-      </Box>
+    <Paper variant="outlined">
+      <Stack spacing={2} style={{ padding: 20 }}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          style={{ alignItems: "flex-start", justifyContent: "space-between" }}
+        >
+          <Box style={{ flex: "1 1 260px" }}>
+            <Typography variant="h6">{course.course_name}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {course.course_id} • {course.professor_name}
+            </Typography>
+          </Box>
+          <CourseGradeBadge
+            summary={courseGrades.gradeSummary}
+            loading={courseGrades.loading}
+          />
+        </Stack>
 
-      <GradesGrid courseId={course.id} {...courseGrades} />
-    </Box>
+        <GradesGrid courseId={course.id} {...courseGrades} />
+      </Stack>
+    </Paper>
   );
 };
 
