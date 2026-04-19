@@ -12,6 +12,16 @@ interface GradesGridProps extends CourseGradesData {
   courseId?: string;
 }
 
+// Slate & Charcoal Color Palette
+const COLORS = {
+  bg: "#0f172a",        // Deep Charcoal (Slate 900)
+  headerBg: "#1e293b",  // Slate Blue-Gray (Slate 800)
+  border: "#334155",    // Muted Slate (Slate 700)
+  textPrimary: "#f8fafc", // Off-white (Slate 50)
+  textSecondary: "#94a3b8", // Muted Text (Slate 400)
+  rowHover: "rgba(51, 65, 85, 0.4)",
+};
+
 export const GradesGrid = ({
   courseId,
   grades,
@@ -30,6 +40,7 @@ export const GradesGrid = ({
       ),
     [grades],
   );
+  
   const visibleGrades = courseId ? sortedGrades : [];
   const visibleError = courseId ? error : null;
   const visibleLoading = courseId ? loading : false;
@@ -76,14 +87,18 @@ export const GradesGrid = ({
               sx={{
                 minWidth: 0,
                 "& .MuiOutlinedInput-root": {
-                  backgroundColor: "rgba(255,255,255,0.03)",
-                  color: "#ecf0f1",
+                  backgroundColor: "rgba(0,0,0,0.2)",
+                  color: COLORS.textPrimary,
+                  fontSize: "0.875rem",
                 },
                 "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(255,255,255,0.14)",
+                  borderColor: COLORS.border,
+                },
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  borderColor: COLORS.textSecondary,
                 },
                 "& .MuiSvgIcon-root": {
-                  color: "#ecf0f1",
+                  color: COLORS.textSecondary,
                 },
               }}
             />
@@ -115,6 +130,7 @@ export const GradesGrid = ({
             size="small"
             color={params.value === "GRADED" ? "success" : "warning"}
             variant="filled"
+            sx={{ fontWeight: 600, fontSize: "0.7rem" }}
           />
         ),
       },
@@ -142,52 +158,64 @@ export const GradesGrid = ({
 
   return (
     <Box sx={{ width: "100%" }}>
-      <DataGrid
-        autoHeight
-        rows={visibleGrades}
-        columns={columns}
-        getRowId={(row) => row.id}
-        loading={visibleLoading}
-        disableRowSelectionOnClick
-        hideFooter
-        sx={{
-          border: "1px solid rgba(255, 255, 255, 0.12)",
-          backgroundColor: "rgba(16, 18, 28, 0.35)",
-          color: "#262B49",
-          "& .MuiDataGrid-columnHeaders": {
-            backgroundColor: "rgba(255, 255, 255, 0.1)",
-            borderBottomColor: "rgba(255, 255, 255, 0.12)",
-            color: "#262B49",
-          },
-          "& .MuiDataGrid-cell": {
-            borderBottomColor: "rgba(255, 255, 255, 0.08)",
-            color: "#ecf0f1",
-          },
-          "& .MuiDataGrid-row": {
-            "&:hover": {
-              backgroundColor: "rgba(100, 150, 255, 0.08)",
-            },
-          },
-          "& .MuiDataGrid-columnSeparator": {
-            color: "rgba(255, 255, 255, 0.12)",
-          },
-          "& .MuiDataGrid-sortIcon, & .MuiDataGrid-menuIconButton": {
-            color: "#ecf0f1",
-          },
-          "& .MuiDataGrid-footerContainer": {
-            borderTopColor: "rgba(255, 255, 255, 0.12)",
-          },
-          "& .MuiDataGrid-overlay": {
-            backgroundColor: "transparent",
-          },
-        }}
-      />
+<DataGrid
+  autoHeight
+  rows={visibleGrades}
+  columns={columns}
+  getRowId={(row) => row.id}
+  loading={visibleLoading}
+  disableRowSelectionOnClick
+  hideFooter
+  sx={{
+    border: `1px solid ${COLORS.border}`,
+    backgroundColor: COLORS.bg,
+    color: COLORS.textPrimary,
+    // 1. Target the main header container
+    "& .MuiDataGrid-columnHeaders": {
+      backgroundColor: `${COLORS.headerBg} !important`,
+      borderBottom: `1px solid ${COLORS.border}`,
+    },
+    // 2. Target each individual header cell (important for background color)
+    "& .MuiDataGrid-columnHeader": {
+      backgroundColor: COLORS.headerBg,
+      color: COLORS.textSecondary,
+    },
+    // 3. Ensure the text specifically inside the title is correct
+    "& .MuiDataGrid-columnHeaderTitle": {
+      textTransform: "uppercase",
+      fontSize: "0.75rem",
+      letterSpacing: "0.05em",
+      fontWeight: 700,
+      color: COLORS.textSecondary,
+    },
+    // 4. Handle icons (sort, menu)
+    "& .MuiDataGrid-sortIcon, & .MuiDataGrid-menuIconButton": {
+      color: COLORS.textSecondary,
+    },
+    "& .MuiDataGrid-cell": {
+      borderBottom: `1px solid ${COLORS.border}`,
+      color: COLORS.textPrimary,
+      py: 1,
+    },
+    "& .MuiDataGrid-row": {
+      "&:hover": {
+        backgroundColor: COLORS.rowHover,
+      },
+    },
+    // Removes that thin white line/separator between headers
+    "& .MuiDataGrid-columnSeparator": {
+      display: "none", 
+    },
+    "& .MuiDataGrid-withBorderColor": {
+      borderColor: COLORS.border,
+    },
+  }}
+/>
     </Box>
   );
 };
 
 export const GradesTable = ({ courseId }: GradesTableProps) => {
   const courseGrades = useCourseGrades(courseId);
-
   return <GradesGrid courseId={courseId} {...courseGrades} />;
 };

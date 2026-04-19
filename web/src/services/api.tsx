@@ -83,9 +83,8 @@ export type UploadedSyllabus = {
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
-class APIError extends Error {
+export class APIError extends Error {
     status: number;
-
     constructor(status: number, message: string) {
         super(message);
         this.status = status;

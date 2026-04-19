@@ -16,6 +16,7 @@ import {
   getSyllabusDownloadUrl,
   getSyllabusMetadata,
   uploadSyllabus,
+  APIError, // Add this
   type Course,
   type UploadedSyllabus,
 } from "@/services/api";
@@ -73,7 +74,6 @@ const Template = () => {
 
   const coursePages = (courses ?? []).map(courseToNavItem);
   const allPages = [
-    { id: ALL_COURSES_PAGE_ID, label: "All Courses", icon: "🗂️", path: ALL_COURSES_PAGE_ID },
     ...coursePages,
   ];
 
@@ -84,9 +84,7 @@ const Template = () => {
   const activeCourseGrades = useCourseGrades(activeCourse?.id);
 
   useEffect(() => {
-    if (!activeCourse) {
-      return;
-    }
+    if (!activeCourse) return;
 
     let cancelled = false;
 
@@ -96,21 +94,25 @@ const Template = () => {
         setSyllabusError(null);
         setSyllabusNotice(null);
         setCurrentSyllabus(null);
+        
         const syllabus = await getSyllabusMetadata(activeCourse.id);
+        
         if (!cancelled) {
           setCurrentSyllabus(syllabus);
         }
       } catch (err) {
         if (cancelled) return;
 
-        const message = err instanceof Error ? err.message : "Unknown error";
-        if (message.includes("404")) {
-          setSyllabusNotice("No syllabus uploaded for this course yet.");
+        // 2. Use status code checking instead of string matching
+        if (err instanceof APIError && err.status === 404) {
+          // If 404, we don't set an error or a notice.
+          // The UI will naturally show the "Upload Syllabus" button 
+          // because currentSyllabus remains null.
+          setCurrentSyllabus(null);
         } else {
           console.error("Failed to fetch syllabus metadata:", err);
           setSyllabusError("Failed to load syllabus details.");
         }
-        setCurrentSyllabus(null);
       } finally {
         if (!cancelled) {
           setLoadingSyllabus(false);
