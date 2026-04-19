@@ -23,7 +23,6 @@ import {
   type Course,
   type UploadedSyllabus,
 } from "@/services/api";
-import CourseGradesOverview from "./CourseGradesOverview";
 import { CourseGradeBadge } from "./CourseGradeBadge";
 import { GradesGrid } from "./DisplayGrades";
 import { useCourseGrades } from "./useCourseGrades";
@@ -42,10 +41,10 @@ const courseToNavItem = (course: Course): NavItem => ({
   path: `course-${course.course_id}`,
 });
 
-const ALL_COURSES_PAGE_ID = "all-courses";
+const HOME_PAGE_ID = "home";
 
 const Template = () => {
-  const [activePage, setActivePage] = useState<string | null>(ALL_COURSES_PAGE_ID);
+  const [activePage, setActivePage] = useState<string | null>(HOME_PAGE_ID);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [courseError, setCourseError] = useState<string | null>(null);
@@ -76,9 +75,6 @@ const Template = () => {
   }, []);
 
   const coursePages = (courses ?? []).map(courseToNavItem);
-  const allPages = [
-    ...coursePages,
-  ];
 
   const isCourse = (pageId: string | null) =>
     pageId !== null && courses.some((c) => c.id === pageId);
@@ -214,6 +210,22 @@ const Template = () => {
 
           <Box style={{ flex: 1, overflow: "auto" }}>
             <List>
+              <ListItemButton
+                selected={activePage === HOME_PAGE_ID}
+                onClick={() => setActivePage(HOME_PAGE_ID)}
+              >
+                <ListItemIcon>🏠</ListItemIcon>
+                <ListItemText primary="Home" />
+              </ListItemButton>
+            </List>
+
+            <Box style={{ padding: "4px 20px 0" }}>
+              <Typography variant="overline" color="text.secondary">
+                Grades
+              </Typography>
+            </Box>
+
+            <List>
               {loadingCourses ? (
                 <Box style={{ display: "flex", justifyContent: "center", padding: 20 }}>
                   <CircularProgress size={24} />
@@ -224,14 +236,14 @@ const Template = () => {
                     {courseError}
                   </Typography>
                 </Box>
-              ) : allPages.length === 0 ? (
+              ) : coursePages.length === 0 ? (
                 <Box style={{ padding: "20px" }}>
                   <Typography variant="body2" color="text.secondary">
                     No courses available
                   </Typography>
                 </Box>
               ) : (
-                allPages.map((page) => (
+                coursePages.map((page) => (
                   <ListItemButton
                     key={page.id}
                     selected={activePage === page.id}
@@ -252,8 +264,8 @@ const Template = () => {
           <Typography variant="h5">
             {isCourse(activePage) && activeCourse
               ? activeCourse.course_name
-              : activePage === ALL_COURSES_PAGE_ID
-                ? "All Course Grades"
+              : activePage === HOME_PAGE_ID
+                ? "Home"
                 : "Grade Tracker"}
           </Typography>
           {isCourse(activePage) && activeCourse && (
@@ -261,9 +273,9 @@ const Template = () => {
               {activeCourse.course_id} • {activeCourse.professor_name}
             </Typography>
           )}
-          {activePage === ALL_COURSES_PAGE_ID && (
+          {activePage === HOME_PAGE_ID && (
             <Typography variant="body2" color="text.secondary">
-              Browse every course and its assignments in one place.
+              Start on the homepage, then open a course from the Grades list.
             </Typography>
           )}
         </Box>
@@ -271,12 +283,24 @@ const Template = () => {
 
         <Box style={{ flex: 1, padding: 24, overflow: "auto" }}>
           <Stack spacing={2}>
-          {activePage === ALL_COURSES_PAGE_ID && (
-            <CourseGradesOverview
-              courses={courses}
-              loading={loadingCourses}
-              error={courseError}
-            />
+          {activePage === HOME_PAGE_ID && (
+            <Box
+              style={{
+                minHeight: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Paper variant="outlined" style={{ width: "min(100%, 560px)" }}>
+                <Stack spacing={1.5} style={{ padding: 32, textAlign: "center" }}>
+                  <Typography variant="h5">Click on Grades</Typography>
+                  <Typography color="text.secondary">
+                    Choose a course from the left sidebar to view its syllabus and grade breakdown.
+                  </Typography>
+                </Stack>
+              </Paper>
+            </Box>
           )}
 
           {isCourse(activePage) && activeCourse && (

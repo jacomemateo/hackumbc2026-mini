@@ -25,6 +25,22 @@ const optionRadius  = 8;
 const dataGridBackground       = charcoal[900];
 const dataGridHeaderBackground = charcoal[800];
 
+const createGradeTone = (accent: string) => ({
+  accent,
+  background: alpha(accent, 0.16),
+  border: alpha(accent, 0.34),
+  shadow: alpha(accent, 0.1),
+});
+
+export const gradeColors = {
+  noGrade: createGradeTone(charcoal[300]),
+  above90: createGradeTone("hsl(142, 52%, 72%)"),
+  above80: createGradeTone("hsl(84, 55%, 68%)"),
+  above70: createGradeTone("hsl(48, 88%, 72%)"),
+  above60: createGradeTone("hsl(35, 88%, 68%)"),
+  below60: createGradeTone("hsl(6, 78%, 72%)"),
+} as const;
+
 const baseTheme = createTheme({
   palette: {
     mode: "dark",
@@ -42,7 +58,7 @@ const baseTheme = createTheme({
       primary:   charcoal[50],
       secondary: charcoal[400],
     },
-    divider: alpha(charcoal[400], 0.2),
+    divider: alpha(charcoal[700], 1.0),
     success: {
       light: "hsl(142, 69%, 73%)",
       main:  "hsl(142, 71%, 45%)",
