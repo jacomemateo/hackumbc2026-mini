@@ -118,10 +118,20 @@ function parseRow(row) {
     const total = gradeCell.querySelector(BB_MAP.gradeTable.totalPoints)?.innerText.trim();
     
     if (score && total) {
-      grade = {
-        earned: parseFloat(score),
-        total: parseFloat(total)
-      };
+      const earnedValue = parseFloat(score);
+      const totalValue = parseFloat(total);
+
+      if (
+        Number.isFinite(earnedValue) &&
+        Number.isFinite(totalValue) &&
+        totalValue > 0 &&
+        earnedValue >= 0
+      ) {
+        grade = {
+          earned: earnedValue,
+          total: totalValue,
+        };
+      }
     }
   }
 

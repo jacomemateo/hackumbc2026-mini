@@ -18,6 +18,8 @@ chrome.storage.local.get(["lastHarvest"], ({ lastHarvest }) => {
     const timeStr = formatDate(lastHarvest.timestamp);
     if (lastHarvest.databaseSynced) {
       setStatus("complete", `Database Populated · Last harvest: ${timeStr}`);
+    } else if (lastHarvest.syncError) {
+      setStatus("error", `Local harvest saved · Sync failed: ${lastHarvest.syncError}`);
     } else {
       setStatus("ready", `Last harvest: ${timeStr}`);
     }
@@ -53,6 +55,7 @@ chrome.runtime.onMessage.addListener((message) => {
 
     case "error":
       setStatus("error", message.text);
+      if (message.harvest) renderExportSection(message.harvest);
       hideProgress();
       startBtn.disabled = false;
       startBtn.textContent = "↺  Retry Harvest";

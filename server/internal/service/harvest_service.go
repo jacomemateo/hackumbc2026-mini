@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jacomemateo/hackumbc2026-mini/server/internal/repository"
 	"github.com/jacomemateo/hackumbc2026-mini/server/internal/transport/http/dto"
+	"github.com/rs/zerolog/log"
 )
 
 var harvestDateLayouts = []string{
@@ -128,27 +129,17 @@ func insertHarvestGrade(ctx context.Context, queries *repository.Queries, course
 		return fmt.Errorf("parse grade status for %q: %w", assignmentName, err)
 	}
 
-	if (grade.Grade.Earned == nil) != (grade.Grade.Total == nil) {
-		return fmt.Errorf("grade %q must include both earned and total or neither", assignmentName)
-	}
+	earned, total, status := normalizeHarvestGradeValues(assignmentName, grade.Grade.Earned, grade.Grade.Total, status)
 
-	if grade.Grade.Earned != nil && *grade.Grade.Earned < 0 {
-		return fmt.Errorf("grade %q has a negative earned value", assignmentName)
-	}
-
-	if grade.Grade.Total != nil && *grade.Grade.Total <= 0 {
-		return fmt.Errorf("grade %q has non-positive total value", assignmentName)
-	}
-
-	if status == repository.GradeStatusGRADED && grade.Grade.Earned == nil {
-		return fmt.Errorf("grade %q is marked graded but has no points", assignmentName)
+	if status == repository.GradeStatusGRADED && earned == nil {
+		return fmt.Errorf("grade %q is marked graded but has no points after normalization", assignmentName)
 	}
 
 	_, err = queries.CreateGrade(ctx, repository.CreateGradeParams{
 		IDCourse:       courseUUID,
 		AssignmentName: assignmentName,
-		Earned:         floatPtrToPgtypeFloat8(grade.Grade.Earned),
-		Total:          floatPtrToPgtypeFloat8(grade.Grade.Total),
+		Earned:         floatPtrToPgtypeFloat8(earned),
+		Total:          floatPtrToPgtypeFloat8(total),
 		GStatus:        status,
 		PostedDate:     timeToPgtypeTimestamptz(postedDate),
 	})
@@ -157,6 +148,32 @@ func insertHarvestGrade(ctx context.Context, queries *repository.Queries, course
 	}
 
 	return nil
+}
+
+func normalizeHarvestGradeValues(
+	assignmentName string,
+	earned *float64,
+	total *float64,
+	status repository.GradeStatus,
+) (*float64, *float64, repository.GradeStatus) {
+	hasMismatchedPoints := (earned == nil) != (total == nil)
+	hasNegativeEarned := earned != nil && *earned < 0
+	hasInvalidTotal := total != nil && *total <= 0
+	gradedWithoutPoints := status == repository.GradeStatusGRADED && earned == nil
+
+	if !hasMismatchedPoints && !hasNegativeEarned && !hasInvalidTotal && !gradedWithoutPoints {
+		return earned, total, status
+	}
+
+	log.Warn().
+		Str("assignment", assignmentName).
+		Bool("has_mismatched_points", hasMismatchedPoints).
+		Bool("has_negative_earned", hasNegativeEarned).
+		Bool("has_invalid_total", hasInvalidTotal).
+		Bool("graded_without_points", gradedWithoutPoints).
+		Msg("normalizing harvested grade with invalid point data")
+
+	return nil, nil, repository.GradeStatusUNGRADED
 }
 
 func parseHarvestDate(value string) (time.Time, error) {

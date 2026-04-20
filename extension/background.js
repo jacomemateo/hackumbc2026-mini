@@ -129,16 +129,25 @@ async function finalize(tabId) {
     notifyDatabaseSyncSuccess(syncResult);
   } catch (error) {
     console.error("Database sync failed:", error);
+    chrome.storage.local.set({
+      lastHarvest: {
+        ...harvestRecord,
+        databaseSynced: false,
+        syncError: error.message,
+      },
+    });
+    notifyPopup({
+      status: "error",
+      text: `Harvest saved locally, but database sync failed: ${error.message}`,
+      harvest: harvestRecord,
+    });
   }
 }
 
 function triggerLocalJsonDownload(harvestRecord) {
   return new Promise((resolve, reject) => {
-    const blob = new Blob(
-      [JSON.stringify(harvestRecord.data, null, 2)],
-      { type: "application/json" }
-    );
-    const url = URL.createObjectURL(blob);
+    const json = JSON.stringify(harvestRecord.data, null, 2);
+    const url = `data:application/json;charset=utf-8,${encodeURIComponent(json)}`;
 
     chrome.downloads.download({
       url,
@@ -146,7 +155,6 @@ function triggerLocalJsonDownload(harvestRecord) {
       saveAs: false,
     }, (downloadId) => {
       const lastError = chrome.runtime.lastError;
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
 
       if (lastError) {
         reject(new Error(lastError.message));
@@ -167,11 +175,20 @@ async function syncHarvestToDatabase(gradesPayload) {
     body: JSON.stringify(gradesPayload),
   });
 
+  const contentType = response.headers.get("content-type") ?? "";
+  const responseBody = contentType.includes("application/json")
+    ? await response.json()
+    : await response.text();
+
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    const errorMessage =
+      typeof responseBody === "object" && responseBody?.error
+        ? responseBody.error
+        : responseBody || `HTTP ${response.status}`;
+    throw new Error(`HTTP ${response.status}: ${errorMessage}`);
   }
 
-  return response.json();
+  return responseBody;
 }
 
 // ── Page-Ready Detection ──────────────────────────────────────────────────────
